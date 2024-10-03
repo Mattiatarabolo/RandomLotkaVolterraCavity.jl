@@ -1,5 +1,7 @@
 module RandomLotkaVolterraCavity
+    using Random, StatsBase, SpecialFunctions, ProgressMeter
 
-# Write your package code here.
+    export population_dynamics
 
+    include("population_dynamics.jl")
 end

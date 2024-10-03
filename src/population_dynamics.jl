@@ -1,0 +1,133 @@
+# Function to sample correlated Gaussian random variables J and J'
+function sample_couplings(m::Float64, σ::Float64, γ::Float64, N::Int)
+    J = randn() * σ / sqrt(N) + m / N
+    J_prime = γ * J + sqrt(1 - γ^2) * randn() * σ / sqrt(N) + m / N
+    return J, J_prime
+end
+
+# Precompute the degree distribution cumulative sum for efficient sampling
+function precompute_cdf(p_k::Vector{Float64})
+    return cumsum(p_k)
+end
+
+function sample_degree(cdf_p_k::Vector{Float64})
+    u = rand()
+    return searchsortedfirst(cdf_p_k, u)
+end
+
+# Shortname for functions used in cavity update
+function φ_func(x::Float64)
+    return exp(-x^2/2)/sqrt(2*pi)
+end
+
+function Φ_func(x::Float64)
+    return (1+erf(x/sqrt(2)))/2
+end
+
+# Function to compute all the quantities obtain by the sum of neighbours' terms in the cavity update
+function sumcav(μ_population::Vector{Float64}, q_population::Vector{Float64}, χ_population::Vector{Float64}, J_population::Vector{Float64}, J_prime_population::Vector{Float64}, neighbors_indices::Vector{Int})
+    sum_μ = 0.0
+    sum_q = 0.0
+    sum_χ = 0.0
+    @inbounds @fastmath @simd for j in neighbors_indices
+        sum_μ += J_population[j] * μ_population[j]
+        sum_q += J_population[j]^2 * q_population[j]
+        sum_χ += J_population[j] * J_prime_population[j] * χ_population[j]
+    end
+    Ε = sqrt(sum_q)
+    Δ = (1+sum_μ)/Ε
+    φ = φ_func(Δ)
+    Φ = Φ_func(Δ)
+    return sum_q, sum_χ, Ε, Δ, φ, Φ 
+end
+
+# Placeholder update functions, where you can optimize the internal logic of f_mu, f_q, f_chi
+function f_μ(sum_χ::Float64, Ε::Float64, Δ::Float64, φ::Float64, Φ::Float64)
+    return Ε / (1 - sum_χ) * (Δ * Φ + φ / Φ)
+end
+
+function f_q(sum_q::Float64, sum_χ::Float64, Δ::Float64, Φ::Float64)
+    return sum_q / (1 - sum_χ)^2 * (Δ^2 * Φ + 1)
+end
+
+function f_χ(sum_χ::Float64, Φ::Float64)
+    return 1 / (1 - sum_χ) * Φ
+end
+
+# Function to run population dynamics with all the performance tips included
+function population_dynamics(p_k::Vector{Float64}, P::Int, tol::Float64, max_iter::Int, m::Float64, σ::Float64, γ::Float64, K::Int; rng=Xoshiro(1234))
+    # Precompute degree distribution CDF
+    cdf_p_k = precompute_cdf(p_k)
+
+    # Initialize populations
+    μ_population = rand(P)
+    q_population = rand(P)
+    χ_population = rand(P)
+    J_population = zeros(P)
+    J_prime_population = zeros(P)
+
+    # Loop over iterations until convergence or max_iter is reached
+    converged = false
+    #@showprogress 
+    for t in 1:max_iter
+        max_diff = 0.0
+
+        # Update each site in the population
+        @inbounds @fastmath for i in 1:P
+            # Sample the degree k
+            k = sample_degree(cdf_p_k)
+
+            # Get k random neighbors
+            neighbors_indices = sample(rng, 1:P, k; replace=false)
+            
+            # Sample k pairs of correlated J, J' values
+            @inbounds @fastmath for j in neighbors_indices
+                J_population[j], J_prime_population[j] = sample_couplings(m, σ, γ, K)
+            end
+
+            # Compute the new values for mu, q, chi using the update functions
+            sum_q, sum_χ, Ε, Δ, φ, Φ = sumcav(μ_population, q_population, χ_population, J_population, J_prime_population, neighbors_indices)
+            new_μ = f_μ(sum_χ, Ε, Δ, φ, Φ)
+            new_q = f_q(sum_q, sum_χ, Δ, Φ)
+            new_χ = f_χ(sum_χ, Φ)
+
+            # Calculate the maximum change in the updates for convergence checking
+            max_diff = max(max_diff, abs(new_μ - μ_population[i]))
+            max_diff = max(max_diff, abs(new_q - q_population[i]))
+            max_diff = max(max_diff, abs(new_χ - χ_population[i]))
+
+            # Update population state in place
+            μ_population[i] = new_μ
+            q_population[i] = new_q
+            χ_population[i] = new_χ 
+        end
+
+        # Check for convergence
+        if t % 10 == 0  # Check every 10 iterations
+            if max_diff < tol
+                converged = true
+                println("Converged after $t iterations.")
+                break
+            end
+        end
+    end
+
+    if !converged
+        println("Reached max iterations without convergence.")
+    end
+
+    return μ_population, q_population, χ_population
+end
+
+# Example usage
+P = Int(1e4)  # Population size
+K = 4  # Average degree of the graph
+k_max = 19
+p_k = [(k+1)*exp(-K)*K^k/factorial(k+1) for k in 1:k_max]  # This is the excess degree distribution, i.e. the cavity degree distribution of an Erdos-Renyi random graph
+tol = 1e-5  # Convergence tolerance
+max_iter = Int(1e6)  # Maximum number of iterations
+m = 0.0  # Mean coupling
+σ = 0.1  # Standard deviation of coupling
+γ = -0.1  # Correlation coefficient between J and J'
+
+μ_population, q_population, χ_population = population_dynamics(p_k, P, tol, max_iter, m, σ, γ, K)
