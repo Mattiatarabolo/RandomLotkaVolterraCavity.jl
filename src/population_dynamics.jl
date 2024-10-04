@@ -46,7 +46,7 @@ function f_μ(sum_χ::Float64, Ε::Float64, Δ::Float64, φ::Float64, Φ::Float6
     return Ε / (1 - sum_χ) * (Δ * Φ + φ )
 end
 
-function f_q(sum_q::Float64, sum_χ::Float64, Δ::Float64, Φ::Float64)
+function f_q(sum_q::Float64, sum_χ::Float64, Δ::Float64, φ::Float64, Φ::Float64)
     return sum_q / (1 - sum_χ)^2 * ((1+Δ^2) * Φ + Δ * φ)
 end
 
