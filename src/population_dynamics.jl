@@ -118,6 +118,7 @@ function population_dynamics(p_k::Vector{Float64}, P::Int, tol::Float64, max_ite
     return μ_population, q_population, χ_population
 end
 
+#=
 # Example usage
 P = Int(1e4)  # Population size
 K = 4  # Average degree of the graph
@@ -130,3 +131,4 @@ m = 0.0  # Mean coupling
 γ = -0.1  # Correlation coefficient between J and J'
 
 μ_population, q_population, χ_population = population_dynamics(p_k, P, tol, max_iter, m, σ, γ, K)
+=#
