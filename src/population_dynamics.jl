@@ -41,7 +41,7 @@ function f_q(sum_q::Float64, sum_χ::Float64, Δ::Float64)
     end
 end
 
-function f_χ(sum_χ::Float64)
+function f_χ(sum_χ::Float64, Δ::Float64)
     return 1 / (1 - sum_χ) * Φ_func(-Δ)
 end
 
@@ -85,7 +85,7 @@ function population_dynamics(p_k::Vector{Float64}, P::Int, tol::Float64, max_ite
             sum_q, sum_χ, Ε, Δ= sumcav(μ_population, q_population, χ_population, J_population, J_prime_population, neighbors_indices)
             μ_population[i] = f_μ(sum_χ, Ε, Δ)
             q_population[i] = f_q(sum_q, sum_χ, Δ)
-            χ_population[i] = f_χ(sum_χ)
+            χ_population[i] = f_χ(sum_χ, Δ)
             testvalues(μ_population[i], q_population[i], χ_population[i], sum_q, sum_χ, Δ)
         end
 
