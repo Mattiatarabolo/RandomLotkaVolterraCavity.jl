@@ -77,7 +77,8 @@ function population_dynamics(p_k::Vector{Float64}, P::Int, tol::Float64, max_ite
     # Loop over iterations until convergence or max_iter is reached
     converged = false
     @showprogress for t in 1:max_iter
-        max_diff = 0.0
+
+        max_diff = Inf
 
         # Update each site in the population
         @inbounds @fastmath for i in shuffle(rng, 1:P)
@@ -94,14 +95,9 @@ function population_dynamics(p_k::Vector{Float64}, P::Int, tol::Float64, max_ite
 
             # Compute the new values for mu, q, chi using the update functions
             sum_q, sum_χ, Ε, Δ, φ, Φ = sumcav(μ_population, q_population, χ_population, J_population, J_prime_population, neighbors_indices)
-            new_μ = f_μ(sum_χ, Ε, Δ, φ, Φ)
-            new_q = f_q(sum_q, sum_χ, φ, Δ, Φ)
-            new_χ = f_χ(sum_χ, Φ)
-
-            # Update population state in place
-            μ_population[i] = new_μ
-            q_population[i] = new_q
-            χ_population[i] = new_χ 
+            μ_population[i] = f_μ(sum_χ, Ε, Δ, φ, Φ)
+            q_population[i] = f_q(sum_q, sum_χ, φ, Δ, Φ)
+            χ_population[i] = f_χ(sum_χ, Φ)
         end
 
         # Calculate new averages for convergence checking
