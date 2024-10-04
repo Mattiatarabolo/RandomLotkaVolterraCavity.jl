@@ -12,7 +12,7 @@ function sample_degree(rng::AbstractRNG, ks::AbstractRange, p_k::Vector{Float64}
 end
 
 function testvalues(sum_μ, sum_q, sum_χ, Ε, Δ, φ, Φ)
-    if sum_q <= 0 || sum_χ == 1 || φ <= 0 || Φ <= 0 || !isfinite(sum_μ) || !isfinite(sum_q) || !isfinite(sum_χ) || !isfinite(Ε) || !isfinite(Δ) || !isfinite(φ) || !isfinite(Φ)
+    if sum_q <= 0 || sum_χ == 1 || φ < 0 || Φ < 0 || !isfinite(sum_μ) || !isfinite(sum_q) || !isfinite(sum_χ) || !isfinite(Ε) || !isfinite(Δ) || !isfinite(φ) || !isfinite(Φ)
         println("sum_μ=$(sum_μ), sum_q=$(sum_q), sum_χ=$(sum_χ), Ε=$(Ε), Δ=$(Δ), φ=$(φ), Φ=$(Φ)")
         throw(ArgumentError("Invalid values"))
     end
