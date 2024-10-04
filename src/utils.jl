@@ -19,7 +19,7 @@ function testvalues(sum_μ, sum_q, sum_χ, Ε, Δ, φ, Φ)
 end
 
 function testvalues(μ, q, χ)
-    if μ < 0 || q <= 0 || χ >= 1
+    if μ < 0 || q <= 0 || χ <= 0
         println("μ=$(μ), q=$(q), χ=$(χ)")
         throw(ArgumentError("Invalid values"))
     end
