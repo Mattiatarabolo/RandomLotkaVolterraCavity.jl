@@ -22,7 +22,7 @@ function sumcav(μ_population::Vector{Float64}, q_population::Vector{Float64}, �
     φ = φ_func(Δ)
     Φ = Φ_func(Δ)
 
-    testvalues(sum_μ, sum_q, sum_χ, Ε, Δ, φ, Φ)
+    #testvalues(sum_μ, sum_q, sum_χ, Ε, Δ, φ, Φ)
     return sum_q, sum_χ, Ε, Δ, φ, Φ 
 end
 
@@ -60,9 +60,9 @@ function population_dynamics(p_k::Vector{Float64}, P::Int, tol::Float64, max_ite
     avg_μ = 0.0
     avg_q = 0.0
     avg_χ = 0.0
-    std_μ = 0.0
-    std_q = 0.0
-    std_χ = 0.0
+ #   std_μ = 0.0
+ #   std_q = 0.0
+ #   std_χ = 0.0
 
     # Loop over iterations until convergence or max_iter is reached
     converged = false
@@ -88,7 +88,7 @@ function population_dynamics(p_k::Vector{Float64}, P::Int, tol::Float64, max_ite
             μ_population[i] = f_μ(sum_χ, Ε, Δ, φ, Φ)
             q_population[i] = f_q(sum_q, sum_χ, φ, Δ, Φ)
             χ_population[i] = f_χ(sum_χ, Φ)
-            testvalues(μ_population[i], q_population[i], χ_population[i])
+            #testvalues(μ_population[i], q_population[i], χ_population[i])
         end
 
         # Calculate new averages for convergence checking
