@@ -86,6 +86,8 @@ function population_dynamics(p_k::Vector{Float64}, P::Int, tol::Float64, max_ite
             # Sample the degree k
             k = sample_degree(rng, cdf_p_k)
 
+            println(k)
+
             # Get k random neighbors
             neighbors_indices = sample(rng, 1:P, k; replace=false)
             
