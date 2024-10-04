@@ -29,7 +29,7 @@ function sumcav(μ_population::Vector{Float64}, q_population::Vector{Float64}, �
     sum_μ = 0.0
     sum_q = 0.0
     sum_χ = 0.0
-    @inbounds @fastmath @simd for j in neighbors_indices
+    @inbounds @simd for j in neighbors_indices
         sum_μ += J_population[j] * μ_population[j]
         sum_q += J_population[j]^2 * q_population[j]
         sum_χ += J_population[j] * J_prime_population[j] * χ_population[j]
@@ -81,7 +81,7 @@ function population_dynamics(p_k::Vector{Float64}, P::Int, tol::Float64, max_ite
         max_diff = Inf
 
         # Update each site in the population
-        @inbounds @fastmath for i in shuffle(rng, 1:P)
+        @inbounds for i in shuffle(rng, 1:P)
             # Sample the degree k
             k = sample_degree(rng, cdf_p_k)
 
@@ -89,7 +89,7 @@ function population_dynamics(p_k::Vector{Float64}, P::Int, tol::Float64, max_ite
             neighbors_indices = sample(rng, 1:P, k; replace=false)
             
             # Sample k pairs of correlated J, J' values
-            @inbounds @fastmath for j in neighbors_indices
+            @inbounds for j in neighbors_indices
                 J_population[j], J_prime_population[j] = sample_couplings(rng, m, σ, γ, K)
             end
 
