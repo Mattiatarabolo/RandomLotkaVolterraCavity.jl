@@ -1,7 +1,7 @@
 # Function to sample correlated Gaussian random variables J and J'
 function sample_couplings(rng, m::Float64, σ::Float64, γ::Float64, K::Int)
     u, v = randn(rng, 2)
-    J = m/K + σ/sqrt(N)*u
+    J = m/K + σ/sqrt(K)*u
     J_prime = m/K + σ/sqrt(K)*(γ*u + sqrt(1-γ^2))*v
     return J, J_prime
 end
