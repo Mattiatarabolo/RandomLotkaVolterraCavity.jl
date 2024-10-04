@@ -12,7 +12,7 @@ end
 
 function sample_degree(rng, cdf_p_k::Vector{Float64})
     u = rand(rng)
-    return searchsortedfirst(cdf_p_k, u)
+    return findfirst(x->x>=u, cdf_p_k)
 end
 
 # Shortname for functions used in cavity update
