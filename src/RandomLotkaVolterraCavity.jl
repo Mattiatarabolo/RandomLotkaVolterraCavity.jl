@@ -3,5 +3,6 @@ module RandomLotkaVolterraCavity
 
     export population_dynamics
 
+    include("utils.jl")
     include("population_dynamics.jl")
 end

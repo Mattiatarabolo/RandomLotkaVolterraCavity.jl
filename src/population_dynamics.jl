@@ -1,21 +1,3 @@
-# Function to sample correlated Gaussian random variables J and J'
-function sample_couplings(rng, m::Float64, σ::Float64, γ::Float64, K::Int)
-    u, v = randn(rng, 2)
-    J = m/K + σ/sqrt(K)*u
-    J_prime = m/K + σ/sqrt(K)*(γ*u + sqrt(1-γ^2))*v
-    return J, J_prime
-end
-
-# Precompute the degree distribution cumulative sum for efficient sampling
-function precompute_cdf(p_k::Vector{Float64})
-    return cumsum(p_k)
-end
-
-function sample_degree(rng::AbstractRNG, ks::AbstractRange, p_k::Vector{Float64})
-    w = Weights(p_k)
-    return sample(rng, ks, w)
-end
-
 # Shortname for functions used in cavity update
 function φ_func(x::Float64)
     return exp(-x^2/2)/sqrt(2*pi)
@@ -39,6 +21,8 @@ function sumcav(μ_population::Vector{Float64}, q_population::Vector{Float64}, �
     Δ = (1+sum_μ)/Ε
     φ = φ_func(Δ)
     Φ = Φ_func(Δ)
+
+    testvalues(sum_μ, sum_q, sum_χ, Ε, Δ, φ, Φ)
     return sum_q, sum_χ, Ε, Δ, φ, Φ 
 end
 
@@ -96,23 +80,24 @@ function population_dynamics(p_k::Vector{Float64}, P::Int, tol::Float64, max_ite
             μ_population[i] = f_μ(sum_χ, Ε, Δ, φ, Φ)
             q_population[i] = f_q(sum_q, sum_χ, φ, Δ, Φ)
             χ_population[i] = f_χ(sum_χ, Φ)
+            testvalues(μ_population[i], q_population[i], χ_population[i])
         end
 
         # Calculate new averages for convergence checking
         new_avg_μ = mean(μ_population)
         new_avg_q = mean(q_population)
         new_avg_χ = mean(χ_population)
-        new_std_μ = std(μ_population; mean=new_avg_μ)
-        new_std_q = std(q_population; mean=new_avg_q)
-        new_std_χ = std(χ_population; mean=new_avg_χ)
+     #   new_std_μ = std(μ_population; mean=new_avg_μ)
+     #   new_std_q = std(q_population; mean=new_avg_q)
+     #   new_std_χ = std(χ_population; mean=new_avg_χ)
 
         # Calculate the maximum change in the updates for convergence checking
         max_diff = max(max_diff, abs(avg_μ - new_avg_μ))
         max_diff = max(max_diff, abs(avg_q - new_avg_q))
         max_diff = max(max_diff, abs(avg_χ - new_avg_χ))
-        max_diff = max(max_diff, abs(std_μ - new_std_μ))
-        max_diff = max(max_diff, abs(std_q - new_std_q))
-        max_diff = max(max_diff, abs(std_χ - new_std_χ))
+    #    max_diff = max(max_diff, abs(std_μ - new_std_μ))
+    #    max_diff = max(max_diff, abs(std_q - new_std_q))
+    #    max_diff = max(max_diff, abs(std_χ - new_std_χ))
 
         # Check for convergence
         if t % 10 == 0  # Check every 10 iterations
