@@ -11,9 +11,9 @@ function precompute_cdf(p_k::Vector{Float64})
     return cumsum(p_k)
 end
 
-function sample_degree(rng, cdf_p_k::Vector{Float64})
-    u = rand(rng)
-    return findfirst(x->x>=u, cdf_p_k)
+function sample_degree2(rng::AbstractRNG, ks::AbstractRange, p_k::Vector{Float64})
+    w = Weights(p_k)
+    return sample(rng, ks, w)
 end
 
 # Shortname for functions used in cavity update
@@ -57,9 +57,6 @@ end
 
 # Function to run population dynamics with all the performance tips included
 function population_dynamics(p_k::Vector{Float64}, P::Int, tol::Float64, max_iter::Int, m::Float64, σ::Float64, γ::Float64, K::Int; rng=Xoshiro(1234))
-    # Precompute degree distribution CDF
-    cdf_p_k = precompute_cdf(p_k)
-
     # Initialize populations
     μ_population = rand(rng, P)
     q_population = rand(rng, P)
@@ -84,7 +81,7 @@ function population_dynamics(p_k::Vector{Float64}, P::Int, tol::Float64, max_ite
         # Update each site in the population
         @inbounds for i in shuffle(rng, 1:P)
             # Sample the degree k
-            k = sample_degree(rng, cdf_p_k)
+            k = sample_degree(rng, 1:length(p_k), p_k)
 
             println(k)
 
