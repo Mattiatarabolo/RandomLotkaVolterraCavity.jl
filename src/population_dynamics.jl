@@ -1,7 +1,7 @@
 # Function to sample correlated Gaussian random variables J and J'
-function sample_couplings(m::Float64, σ::Float64, γ::Float64, N::Int)
-    J = randn() * σ / sqrt(N) + m / N
-    J_prime = γ * J + sqrt(1 - γ^2) * randn() * σ / sqrt(N) + m / N
+function sample_couplings(rng, m::Float64, σ::Float64, γ::Float64, N::Int)
+    J = randn(rng) * σ / sqrt(N) + m / N
+    J_prime = γ * J + sqrt(1 - γ^2) * randn(rng) * σ / sqrt(N) + m / N
     return J, J_prime
 end
 
@@ -10,8 +10,8 @@ function precompute_cdf(p_k::Vector{Float64})
     return cumsum(p_k)
 end
 
-function sample_degree(cdf_p_k::Vector{Float64})
-    u = rand()
+function sample_degree(rng, cdf_p_k::Vector{Float64})
+    u = rand(rng)
     return searchsortedfirst(cdf_p_k, u)
 end
 
@@ -83,14 +83,14 @@ function population_dynamics(p_k::Vector{Float64}, P::Int, tol::Float64, max_ite
         # Update each site in the population
         @inbounds @fastmath for i in shuffle(rng, 1:P)
             # Sample the degree k
-            k = sample_degree(cdf_p_k)
+            k = sample_degree(rng, cdf_p_k)
 
             # Get k random neighbors
             neighbors_indices = sample(rng, 1:P, k; replace=false)
             
             # Sample k pairs of correlated J, J' values
             @inbounds @fastmath for j in neighbors_indices
-                J_population[j], J_prime_population[j] = sample_couplings(m, σ, γ, K)
+                J_population[j], J_prime_population[j] = sample_couplings(rng, m, σ, γ, K)
             end
 
             # Compute the new values for mu, q, chi using the update functions
