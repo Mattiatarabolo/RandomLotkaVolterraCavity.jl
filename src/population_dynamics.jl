@@ -29,9 +29,9 @@ end
 # Placeholder update functions, where you can optimize the internal logic of f_mu, f_q, f_chi
 function f_μ(sum_χ::Float64, Ε::Float64, Δ::Float64, φ::Float64, Φ::Float64)
     if sum_χ < 1.0
-        return max(1e-4, Ε / (1 - sum_χ) * (Δ * Φ + φ))
+        return max(0.0, Ε / (1 - sum_χ) * (Δ * Φ + φ))
     else
-        return max(1e-4, Ε / (1 - sum_χ) * (Δ * Φ - φ))
+        return max(0.0, Ε / (1 - sum_χ) * (Δ * Φ - φ))
     end
 end
 
