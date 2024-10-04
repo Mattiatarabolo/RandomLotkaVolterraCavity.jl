@@ -19,32 +19,30 @@ function sumcav(μ_population::Vector{Float64}, q_population::Vector{Float64}, �
     end
     Ε = sqrt(sum_q)
     Δ = (1+sum_μ)/Ε
-    φ = φ_func(Δ)
-    Φ = Φ_func(Δ)
 
-    testvalues(sum_μ, sum_q, sum_χ, Ε, Δ, φ, Φ)
-    return sum_q, sum_χ, Ε, Δ, φ, Φ 
+    testvalues(sum_μ, sum_q, sum_χ, Ε, Δ)
+    return sum_q, sum_χ, Ε, Δ
 end
 
 # Placeholder update functions, where you can optimize the internal logic of f_mu, f_q, f_chi
-function f_μ(sum_χ::Float64, Ε::Float64, Δ::Float64, φ::Float64, Φ::Float64)
+function f_μ(sum_χ::Float64, Ε::Float64, Δ::Float64)
     if sum_χ < 1.0
-        return max(0.0, Ε / (1 - sum_χ) * (Δ * Φ + φ))
+        return max(0.0, Ε / (1 - sum_χ) * (Δ * Φ_func(Δ) + φ_func(Δ)))
     else
-        return max(0.0, Ε / (1 - sum_χ) * (Δ * Φ - φ))
+        return max(0.0, Ε / (1 - sum_χ) * (Δ * Φ_func(-Δ) - φ_func(-Δ)))
     end
 end
 
-function f_q(sum_q::Float64, sum_χ::Float64, Δ::Float64, φ::Float64, Φ::Float64)
+function f_q(sum_q::Float64, sum_χ::Float64, Δ::Float64)
     if sum_χ < 1.0
-        return max(0.0, sum_q / (1 - sum_χ)^2 * ((1+Δ^2) * Φ + Δ * φ))
+        return max(1e-6, sum_q / (1 - sum_χ)^2 * ((1+Δ^2) * Φ_func(Δ) + Δ * φ_func(Δ)))
     else
-        return max(0.0, sum_q / (1 - sum_χ)^2 * ((1+Δ^2) * Φ - 3 * Δ * φ))
+        return max(1e-6, sum_q / (1 - sum_χ)^2 * ((1+Δ^2) * Φ_func(-Δ) - Δ * φ_func(-Δ)))
     end
 end
 
-function f_χ(sum_χ::Float64, Φ::Float64)
-    return max(0.0, 1 / (1 - sum_χ) * Φ)
+function f_χ(sum_χ::Float64)
+    return 1 / (1 - sum_χ) * Φ_func(-Δ)
 end
 
 # Function to run population dynamics with all the performance tips included
@@ -84,11 +82,11 @@ function population_dynamics(p_k::Vector{Float64}, P::Int, tol::Float64, max_ite
             end
 
             # Compute the new values for mu, q, chi using the update functions
-            sum_q, sum_χ, Ε, Δ, φ, Φ = sumcav(μ_population, q_population, χ_population, J_population, J_prime_population, neighbors_indices)
-            μ_population[i] = f_μ(sum_χ, Ε, Δ, φ, Φ)
-            q_population[i] = f_q(sum_q, sum_χ, φ, Δ, Φ)
-            χ_population[i] = f_χ(sum_χ, Φ)
-            testvalues(μ_population[i], q_population[i], χ_population[i], sum_q, sum_χ, Δ, φ, Φ)
+            sum_q, sum_χ, Ε, Δ= sumcav(μ_population, q_population, χ_population, J_population, J_prime_population, neighbors_indices)
+            μ_population[i] = f_μ(sum_χ, Ε, Δ)
+            q_population[i] = f_q(sum_q, sum_χ, Δ)
+            χ_population[i] = f_χ(sum_χ)
+            testvalues(μ_population[i], q_population[i], χ_population[i], sum_q, sum_χ, Δ)
         end
 
         # Calculate new averages for convergence checking
