@@ -11,7 +11,7 @@ function precompute_cdf(p_k::Vector{Float64})
     return cumsum(p_k)
 end
 
-function sample_degree2(rng::AbstractRNG, ks::AbstractRange, p_k::Vector{Float64})
+function sample_degree(rng::AbstractRNG, ks::AbstractRange, p_k::Vector{Float64})
     w = Weights(p_k)
     return sample(rng, ks, w)
 end
