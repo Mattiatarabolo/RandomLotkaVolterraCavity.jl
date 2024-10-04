@@ -66,6 +66,14 @@ function population_dynamics(p_k::Vector{Float64}, P::Int, tol::Float64, max_ite
     J_population = zeros(P)
     J_prime_population = zeros(P)
 
+    # Initialize averages to check convergence
+    avg_μ = 0.0
+    avg_q = 0.0
+    avg_χ = 0.0
+    std_μ = 0.0
+    std_q = 0.0
+    std_χ = 0.0
+
     # Loop over iterations until convergence or max_iter is reached
     converged = false
     @showprogress for t in 1:max_iter
@@ -90,16 +98,27 @@ function population_dynamics(p_k::Vector{Float64}, P::Int, tol::Float64, max_ite
             new_q = f_q(sum_q, sum_χ, φ, Δ, Φ)
             new_χ = f_χ(sum_χ, Φ)
 
-            # Calculate the maximum change in the updates for convergence checking
-            max_diff = max(max_diff, abs(new_μ - μ_population[i]))
-            max_diff = max(max_diff, abs(new_q - q_population[i]))
-            max_diff = max(max_diff, abs(new_χ - χ_population[i]))
-
             # Update population state in place
             μ_population[i] = new_μ
             q_population[i] = new_q
             χ_population[i] = new_χ 
         end
+
+        # Calculate new averages for convergence checking
+        new_avg_μ = mean(μ_population)
+        new_avg_q = mean(q_population)
+        new_avg_χ = mean(χ_population)
+        new_std_μ = std(μ_population; mean=new_avg_μ)
+        new_std_q = std(q_population; mean=new_avg_q)
+        new_std_χ = std(χ_population; mean=new_avg_χ)
+
+        # Calculate the maximum change in the updates for convergence checking
+        max_diff = max(max_diff, abs(avg_μ - new_avg_μ))
+        max_diff = max(max_diff, abs(avg_q - new_avg_q))
+        max_diff = max(max_diff, abs(avg_χ - new_avg_χ))
+        max_diff = max(max_diff, abs(std_μ - new_std_μ))
+        max_diff = max(max_diff, abs(std_q - new_std_q))
+        max_diff = max(max_diff, abs(std_χ - new_std_χ))
 
         # Check for convergence
         if t % 10 == 0  # Check every 10 iterations

@@ -2,7 +2,7 @@
 
 julia_version = "1.10.5"
 manifest_format = "2.0"
-project_hash = "468677d0b9afd5d35965102403b32b00d314f62f"
+project_hash = "e0c101f63e13a3313701074e7b0287dd7d695f2c"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -202,7 +202,7 @@ uuid = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
 [[deps.RandomLotkaVolterraCavity]]
 deps = ["ProgressMeter", "Random", "SpecialFunctions", "StatsBase"]
-git-tree-sha1 = "0baeb23787a605d22c12f82dd24604bd33489758"
+git-tree-sha1 = "119b1fff05cd60c0c7f3d7a8a89da6be3cc578ed"
 repo-rev = "main"
 repo-url = "/Users/mattiatarabolo/Desktop/julia_codes/RandomLotkaVolterraCavity.jl"
 uuid = "e0cb5db2-507d-4330-81aa-f62556075e35"
