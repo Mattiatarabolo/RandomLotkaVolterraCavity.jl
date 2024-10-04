@@ -87,7 +87,7 @@ function population_dynamics(p_k::Vector{Float64}, P::Int, tol::Float64, max_ite
             # Compute the new values for mu, q, chi using the update functions
             sum_q, sum_χ, Ε, Δ, φ, Φ = sumcav(μ_population, q_population, χ_population, J_population, J_prime_population, neighbors_indices)
             new_μ = f_μ(sum_χ, Ε, Δ, φ, Φ)
-            new_q = f_q(sum_q, sum_χ, Δ, Φ)
+            new_q = f_q(sum_q, sum_χ, φ, Δ, Φ)
             new_χ = f_χ(sum_χ, Φ)
 
             # Calculate the maximum change in the updates for convergence checking
