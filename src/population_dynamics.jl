@@ -22,7 +22,7 @@ function sumcav(μ_population::Vector{Float64}, q_population::Vector{Float64}, �
     φ = φ_func(Δ)
     Φ = Φ_func(Δ)
 
-    #testvalues(sum_μ, sum_q, sum_χ, Ε, Δ, φ, Φ)
+    testvalues(sum_μ, sum_q, sum_χ, Ε, Δ, φ, Φ)
     return sum_q, sum_χ, Ε, Δ, φ, Φ 
 end
 
