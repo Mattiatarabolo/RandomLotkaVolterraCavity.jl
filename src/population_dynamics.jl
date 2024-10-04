@@ -37,9 +37,9 @@ end
 
 function f_q(sum_q::Float64, sum_χ::Float64, Δ::Float64, φ::Float64, Φ::Float64)
     if sum_χ < 1.0
-        return max(1e-4, sum_q / (1 - sum_χ)^2 * ((1+Δ^2) * Φ + Δ * φ))
+        return max(0.0, sum_q / (1 - sum_χ)^2 * ((1+Δ^2) * Φ + Δ * φ))
     else
-        return max(1e-4, sum_q / (1 - sum_χ)^2 * ((1+Δ^2) * Φ - 3 * Δ * φ))
+        return max(0.0, sum_q / (1 - sum_χ)^2 * ((1+Δ^2) * Φ - 3 * Δ * φ))
     end
 end
 
@@ -88,7 +88,7 @@ function population_dynamics(p_k::Vector{Float64}, P::Int, tol::Float64, max_ite
             μ_population[i] = f_μ(sum_χ, Ε, Δ, φ, Φ)
             q_population[i] = f_q(sum_q, sum_χ, φ, Δ, Φ)
             χ_population[i] = f_χ(sum_χ, Φ)
-            #testvalues(μ_population[i], q_population[i], χ_population[i])
+            testvalues(μ_population[i], q_population[i], χ_population[i])
         end
 
         # Calculate new averages for convergence checking
