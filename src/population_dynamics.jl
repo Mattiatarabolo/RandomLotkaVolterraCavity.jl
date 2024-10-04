@@ -44,7 +44,7 @@ function f_q(sum_q::Float64, sum_χ::Float64, Δ::Float64, φ::Float64, Φ::Floa
 end
 
 function f_χ(sum_χ::Float64, Φ::Float64)
-    return 1 / (1 - sum_χ) * Φ
+    return max(0.0, 1 / (1 - sum_χ) * Φ)
 end
 
 # Function to run population dynamics with all the performance tips included
