@@ -43,11 +43,11 @@ end
 
 # Placeholder update functions, where you can optimize the internal logic of f_mu, f_q, f_chi
 function f_μ(sum_χ::Float64, Ε::Float64, Δ::Float64, φ::Float64, Φ::Float64)
-    return Ε / (1 - sum_χ) * (Δ * Φ + φ / Φ)
+    return Ε / (1 - sum_χ) * (Δ * Φ + φ )
 end
 
 function f_q(sum_q::Float64, sum_χ::Float64, Δ::Float64, Φ::Float64)
-    return sum_q / (1 - sum_χ)^2 * (Δ^2 * Φ + 1)
+    return sum_q / (1 - sum_χ)^2 * ((1+Δ^2) * Φ + Δ * φ)
 end
 
 function f_χ(sum_χ::Float64, Φ::Float64)
@@ -68,12 +68,11 @@ function population_dynamics(p_k::Vector{Float64}, P::Int, tol::Float64, max_ite
 
     # Loop over iterations until convergence or max_iter is reached
     converged = false
-    #@showprogress 
-    for t in 1:max_iter
+    @showprogress for t in 1:max_iter
         max_diff = 0.0
 
         # Update each site in the population
-        @inbounds @fastmath for i in 1:P
+        @inbounds @fastmath for i in shuffle(rng, 1:P)
             # Sample the degree k
             k = sample_degree(cdf_p_k)
 
