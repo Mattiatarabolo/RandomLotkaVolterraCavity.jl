@@ -18,9 +18,9 @@ function testvalues(sum_μ, sum_q, sum_χ, Ε, Δ, φ, Φ)
     end
 end
 
-function testvalues(μ, q, χ)
+function testvalues(μ, q, χ, sum_q, sum_χ, Δ, φ, Φ)
     if μ < 0 || q <= 0 || χ <= 0 || !isfinite(μ) || !isfinite(q) || !isfinite(χ)
-        println("μ=$(μ), q=$(q), χ=$(χ)")
+        println("μ=$(μ), q=$(q), χ=$(χ), sum_q=$(sum_q), sum_χ=$(sum_χ), Δ=$(Δ), φ=$(φ), Φ=$(Φ)")
         throw(ArgumentError("Invalid values"))
     end
 end

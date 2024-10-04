@@ -88,7 +88,7 @@ function population_dynamics(p_k::Vector{Float64}, P::Int, tol::Float64, max_ite
             μ_population[i] = f_μ(sum_χ, Ε, Δ, φ, Φ)
             q_population[i] = f_q(sum_q, sum_χ, φ, Δ, Φ)
             χ_population[i] = f_χ(sum_χ, Φ)
-            testvalues(μ_population[i], q_population[i], χ_population[i])
+            testvalues(μ_population[i], q_population[i], χ_population[i], sum_q, sum_χ, Δ, φ, Φ)
         end
 
         # Calculate new averages for convergence checking
