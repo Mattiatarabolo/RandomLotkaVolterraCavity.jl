@@ -202,7 +202,7 @@ uuid = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
 [[deps.RandomLotkaVolterraCavity]]
 deps = ["ProgressMeter", "Random", "SpecialFunctions", "StatsBase"]
-git-tree-sha1 = "37890599b87c353b151e7adabcd15950cccea16f"
+git-tree-sha1 = "0baeb23787a605d22c12f82dd24604bd33489758"
 repo-rev = "main"
 repo-url = "/Users/mattiatarabolo/Desktop/julia_codes/RandomLotkaVolterraCavity.jl"
 uuid = "e0cb5db2-507d-4330-81aa-f62556075e35"
