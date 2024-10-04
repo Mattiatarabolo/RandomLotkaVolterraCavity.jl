@@ -60,9 +60,9 @@ function population_dynamics(p_k::Vector{Float64}, P::Int, tol::Float64, max_ite
     cdf_p_k = precompute_cdf(p_k)
 
     # Initialize populations
-    μ_population = rand(P)
-    q_population = rand(P)
-    χ_population = rand(P)
+    μ_population = rand(rng, P)
+    q_population = rand(rng, P)
+    χ_population = rand(rng, P)
     J_population = zeros(P)
     J_prime_population = zeros(P)
 
