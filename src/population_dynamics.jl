@@ -42,7 +42,11 @@ function f_q(sum_q::Float64, sum_χ::Float64, Δ::Float64)
 end
 
 function f_χ(sum_χ::Float64, Δ::Float64)
-    return 1 / (1 - sum_χ) * Φ_func(-Δ)
+    if sum_χ < 1.0
+        return 1 / (1 - sum_χ) * Φ_func(Δ)
+    else
+        return 1 / (1 - sum_χ) * Φ_func(-Δ)
+    end
 end
 
 # Function to run population dynamics with all the performance tips included
