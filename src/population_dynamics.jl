@@ -8,11 +8,11 @@ function Φ_func(x::Float64)
 end
 
 # Function to compute all the quantities obtain by the sum of neighbours' terms in the cavity update
-function sumcav(μ_population::Vector{Float64}, q_population::Vector{Float64}, χ_population::Vector{Float64}, J_population::Vector{Float64}, J_prime_population::Vector{Float64}, neighbors_indices::Vector{Int})
+function sumpop(μ_population::Vector{Float64}, q_population::Vector{Float64}, χ_population::Vector{Float64}, J_population::Vector{Float64}, J_prime_population::Vector{Float64}, neighbors_indices::Vector{Int})
     sum_μ = 0.0
     sum_q = 0.0
     sum_χ = 0.0
-    @inbounds @simd for j in neighbors_indices
+    @inbounds @simd @fastmath for j in neighbors_indices
         sum_μ += J_population[j] * μ_population[j]
         sum_q += J_population[j]^2 * q_population[j]
         sum_χ += J_population[j] * J_prime_population[j] * χ_population[j]
@@ -50,11 +50,14 @@ function f_χ(sum_χ::Float64, Δ::Float64)
 end
 
 # Function to run population dynamics with all the performance tips included
-function population_dynamics(p_k::Vector{Float64}, P::Int, tol::Float64, max_iter::Int, m::Float64, σ::Float64, γ::Float64, K::Int; rng=Xoshiro(1234))
+function population_dynamics(p_k::Vector{Float64}, p_cav_k::Vector{Float64}, P::Int, tol::Float64, max_iter::Int, m::Float64, σ::Float64, γ::Float64, K::Int; rng=Xoshiro(1234))
     # Initialize populations
-    μ_population = rand(rng, P)
-    q_population = rand(rng, P)
-    χ_population = rand(rng, P)
+    μ_cav_population = rand(rng, P)
+    q_cav_population = rand(rng, P)
+    χ_cav_population = rand(rng, P)
+    μ_full_population = rand(rng, P)
+    q_full_population = rand(rng, P)
+    χ_full_population = rand(rng, P)
     J_population = zeros(P)
     J_prime_population = zeros(P)
 
@@ -75,28 +78,45 @@ function population_dynamics(p_k::Vector{Float64}, P::Int, tol::Float64, max_ite
         # Update each site in the population
         @inbounds for i in shuffle(rng, 1:P)
             # Sample the degree k
-            k = sample_degree(rng, 1:length(p_k), p_k)
+            k_cav = sample_degree(rng, 1:length(p_cav_k), p_cav_k)
+            k_full = sample_degree(rng, 1:length(p_k), p_k)
 
             # Get k random neighbors
-            neighbors_indices = sample(rng, 1:P, k; replace=false)
+            neighbors_indices_cav = sample(rng, 1:P, k_cav; replace=false)
+            neighbors_indices_full = sample(rng, 1:P, k_full; replace=false)
             
-            # Sample k pairs of correlated J, J' values
-            @inbounds for j in neighbors_indices
+            # CAVITY UPDATE
+            # Sample k_cav pairs of correlated J, J' values
+            @inbounds for j in neighbors_indices_cav
                 J_population[j], J_prime_population[j] = sample_couplings(rng, m, σ, γ, K)
             end
 
             # Compute the new values for mu, q, chi using the update functions
-            sum_q, sum_χ, Ε, Δ= sumcav(μ_population, q_population, χ_population, J_population, J_prime_population, neighbors_indices)
-            μ_population[i] = f_μ(sum_χ, Ε, Δ)
-            q_population[i] = f_q(sum_q, sum_χ, Δ)
-            χ_population[i] = f_χ(sum_χ, Δ)
-            testvalues(μ_population[i], q_population[i], χ_population[i], sum_q, sum_χ, Δ)
+            sum_q_cav, sum_χ_cav, Ε_cav, Δ_cav= sumpop(μ_cav_population, q_cav_population, χ_cav_population, J_population, J_prime_population, neighbors_indices_cav)
+            μ_cav_population[i] = f_μ(sum_χ_cav, Ε_cav, Δ_cav)
+            q_cav_population[i] = f_q(sum_q_cav, sum_χ_cav, Δ_cav)
+            χ_cav_population[i] = f_χ(sum_χ_cav, Δ_cav)
+            testvalues(μ_cav_population[i], q_cav_population[i], χ_cav_population[i], sum_q_cav, sum_χ_cav, Δ_cav)
+
+            # FULL UPDATE
+            # Sample k pairs of correlated J, J' values
+            @inbounds for j in neighbors_indices_full
+                J_population[j], J_prime_population[j] = sample_couplings(rng, m, σ, γ, K)
+            end
+
+            # Compute the new values for mu, q, chi using the update functions
+            sum_q_full, sum_χ_full, Ε_full, Δ_full= sumpop(μ_cav_population, q_cav_population, χ_cav_population, J_population, J_prime_population, neighbors_indices_x_full)
+            μ_full_population[i] = f_μ(sum_χ_full, Ε_full, Δ_full)
+            q_full_population[i] = f_q(sum_q_full, sum_χ_full, Δ_full)
+            χ_full_population[i] = f_χ(sum_χ_full, Δ_full)
+            testvalues(μ_full_population[i], q_full_population[i], χ_full_population[i], sum_q_full, sum_χ_full, Δ_full)  
+
         end
 
         # Calculate new averages for convergence checking
-        new_avg_μ = mean(μ_population)
-        new_avg_q = mean(q_population)
-        new_avg_χ = mean(χ_population)
+        new_avg_μ = mean(μ_cav_population)
+        new_avg_q = mean(q_cav_population)
+        new_avg_χ = mean(χ_cav_population)
      #   new_std_μ = std(μ_population; mean=new_avg_μ)
      #   new_std_q = std(q_population; mean=new_avg_q)
      #   new_std_χ = std(χ_population; mean=new_avg_χ)
@@ -123,7 +143,7 @@ function population_dynamics(p_k::Vector{Float64}, P::Int, tol::Float64, max_ite
         println("Reached max iterations without convergence.")
     end
 
-    return μ_population, q_population, χ_population
+    return μ_full_population, q_full_population, χ_full_population, μ_cav_population, q_cav_population, χ_cav_population
 end
 
 #=
