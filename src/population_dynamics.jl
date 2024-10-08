@@ -92,7 +92,7 @@ function population_dynamics(p_k::Vector{Float64}, p_cav_k::Vector{Float64}, P::
             end
 
             # Compute the new values for mu, q, chi using the update functions
-            sum_q_cav, sum_χ_cav, Ε_cav, Δ_cav= sumpop(μ_cav_population, q_cav_population, χ_cav_population, J_population, J_prime_population, neighbors_indices_cav)
+            sum_q_cav, sum_χ_cav, Ε_cav, Δ_cav = sumpop(μ_cav_population, q_cav_population, χ_cav_population, J_population, J_prime_population, neighbors_indices_cav)
             μ_cav_population[i] = f_μ(sum_χ_cav, Ε_cav, Δ_cav)
             q_cav_population[i] = f_q(sum_q_cav, sum_χ_cav, Δ_cav)
             χ_cav_population[i] = f_χ(sum_χ_cav, Δ_cav)
@@ -105,7 +105,7 @@ function population_dynamics(p_k::Vector{Float64}, p_cav_k::Vector{Float64}, P::
             end
 
             # Compute the new values for mu, q, chi using the update functions
-            sum_q_full, sum_χ_full, Ε_full, Δ_full= sumpop(μ_cav_population, q_cav_population, χ_cav_population, J_population, J_prime_population, neighbors_indices_x_full)
+            sum_q_full, sum_χ_full, Ε_full, Δ_full = sumpop(μ_cav_population, q_cav_population, χ_cav_population, J_population, J_prime_population, neighbors_indices_full)
             μ_full_population[i] = f_μ(sum_χ_full, Ε_full, Δ_full)
             q_full_population[i] = f_q(sum_q_full, sum_χ_full, Δ_full)
             χ_full_population[i] = f_χ(sum_χ_full, Δ_full)
