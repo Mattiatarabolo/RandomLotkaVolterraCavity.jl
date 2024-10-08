@@ -12,7 +12,7 @@ function sumpop(μ_population::Vector{Float64}, q_population::Vector{Float64}, �
     sum_μ = 0.0
     sum_q = 0.0
     sum_χ = 0.0
-    @inbounds @simd @fastmath for j in neighbors_indices
+    @inbounds @fastmath @simd for j in neighbors_indices
         sum_μ += J_population[j] * μ_population[j]
         sum_q += J_population[j]^2 * q_population[j]
         sum_χ += J_population[j] * J_prime_population[j] * χ_population[j]
