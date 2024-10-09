@@ -111,19 +111,22 @@ function population_dynamics(p_k::Vector{Float64}, p_cav_k::Vector{Float64}, P::
 
         # Calculate new averages for convergence checking
         new_avg_μ = mean(μ_cav_population)
-      #  new_avg_q = mean(q_cav_population)
-      #  new_avg_χ = mean(χ_cav_population)
+        new_avg_q = mean(q_cav_population)
+        new_avg_χ = mean(χ_cav_population)
      #   new_std_μ = std(μ_population; mean=new_avg_μ)
      #   new_std_q = std(q_population; mean=new_avg_q)
      #   new_std_χ = std(χ_population; mean=new_avg_χ)
 
         # Calculate the maximum change in the updates for convergence checking
         max_diff = abs(avg_μ - new_avg_μ)
-        #max_diff = max(max_diff, abs(avg_q - new_avg_q))
-        #max_diff = max(max_diff, abs(avg_χ - new_avg_χ))
+        max_diff = max(max_diff, abs(avg_q - new_avg_q))
+        max_diff = max(max_diff, abs(avg_χ - new_avg_χ))
     #    max_diff = max(max_diff, abs(std_μ - new_std_μ))
     #    max_diff = max(max_diff, abs(std_q - new_std_q))
     #    max_diff = max(max_diff, abs(std_χ - new_std_χ))
+        avg_μ = new_avg_μ
+        avg_q = new_avg_q
+        avg_χ = new_avg_χ
 
         # Check for convergence
         if t % 10 == 0  # Check every 10 iterations
