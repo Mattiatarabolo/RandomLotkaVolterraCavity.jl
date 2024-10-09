@@ -127,6 +127,7 @@ function population_dynamics(p_k::Vector{Float64}, p_cav_k::Vector{Float64}, P::
 
         # Check for convergence
         if t % 10 == 0  # Check every 10 iterations
+            println(max_diff)
             if max_diff < tol
                 converged = true
                 println("Converged after $t iterations.")
