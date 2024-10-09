@@ -119,8 +119,8 @@ function population_dynamics(p_k::Vector{Float64}, p_cav_k::Vector{Float64}, P::
 
         # Calculate the maximum change in the updates for convergence checking
         max_diff = abs(avg_μ - new_avg_μ)
-        max_diff = max(max_diff, abs(avg_q - new_avg_q))
-        max_diff = max(max_diff, abs(avg_χ - new_avg_χ))
+        #max_diff = max(max_diff, abs(avg_q - new_avg_q))
+        #max_diff = max(max_diff, abs(avg_χ - new_avg_χ))
     #    max_diff = max(max_diff, abs(std_μ - new_std_μ))
     #    max_diff = max(max_diff, abs(std_q - new_std_q))
     #    max_diff = max(max_diff, abs(std_χ - new_std_χ))
