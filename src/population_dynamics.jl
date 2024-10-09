@@ -73,7 +73,7 @@ function population_dynamics(p_k::Vector{Float64}, p_cav_k::Vector{Float64}, P::
     converged = false
     @showprogress for t in 1:max_iter
 
-        max_diff = Inf
+        max_diff = 0.0
 
         # Update each site in the population
         @inbounds for i in shuffle(rng, 1:P)
