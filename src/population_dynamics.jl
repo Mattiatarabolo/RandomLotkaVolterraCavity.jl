@@ -50,7 +50,7 @@ function f_χ(sum_χ::Float64, Δ::Float64)
 end
 
 # Function to run population dynamics with all the performance tips included
-function population_dynamics(p_k::Vector{Float64}, p_cav_k::Vector{Float64}, P::Int, tol::Float64, max_iter::Int, m::Float64, σ::Float64, γ::Float64, K::Int; rng=Xoshiro(1234))
+function population_dynamics(p_k::Vector{Float64}, p_cav_k::Vector{Float64}, P::Int, tol::Float64, max_iter::Int, m::Float64, σ²::Float64, γ::Float64, K::Int; rng=Xoshiro(1234))
     # Initialize populations
     μ_cav_population = rand(rng, P)
     q_cav_population = rand(rng, P)
@@ -88,7 +88,7 @@ function population_dynamics(p_k::Vector{Float64}, p_cav_k::Vector{Float64}, P::
             # CAVITY UPDATE
             # Sample k_cav pairs of correlated J, J' values
             @inbounds for j in neighbors_indices_cav
-                J_population[j], J_prime_population[j] = sample_couplings(rng, m, σ, γ, K)
+                J_population[j], J_prime_population[j] = sample_couplings(rng, m, σ², γ, K)
             end
 
             # Compute the new values for mu, q, chi using the update functions
@@ -99,11 +99,10 @@ function population_dynamics(p_k::Vector{Float64}, p_cav_k::Vector{Float64}, P::
             testvalues(μ_cav_population[i], q_cav_population[i], χ_cav_population[i], sum_q_cav, sum_χ_cav, Δ_cav)
 
             # FULL UPDATE
-            # Sample k pairs of correlated J, J' values
+            # Sample k_cav pairs of correlated J, J' values
             @inbounds for j in neighbors_indices_full
-                J_population[j], J_prime_population[j] = sample_couplings(rng, m, σ, γ, K)
+                J_population[j], J_prime_population[j] = sample_couplings(rng, m, σ², γ, K)
             end
-
             # Compute the new values for mu, q, chi using the update functions
             sum_q_full, sum_χ_full, Ε_full, Δ_full = sumpop(μ_cav_population, q_cav_population, χ_cav_population, J_population, J_prime_population, neighbors_indices_full)
             μ_full_population[i] = f_μ(sum_χ_full, Ε_full, Δ_full)
