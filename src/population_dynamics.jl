@@ -27,17 +27,17 @@ end
 # Placeholder update functions, where you can optimize the internal logic of f_mu, f_q, f_chi
 function f_μ(sum_χ::Float64, Ε::Float64, Δ::Float64)
     if sum_χ < 1.0
-        return max(0.0, Ε / (1 - sum_χ) * (Δ * Φ_func(Δ) + φ_func(Δ)))
+        return Ε / (1 - sum_χ) * (Δ * Φ_func(Δ) + φ_func(Δ))
     else
-        return max(0.0, Ε / (1 - sum_χ) * (Δ * Φ_func(-Δ) - φ_func(-Δ)))
+        return Ε / (1 - sum_χ) * (Δ * Φ_func(-Δ) - φ_func(-Δ))
     end
 end
 
 function f_q(sum_q::Float64, sum_χ::Float64, Δ::Float64)
     if sum_χ < 1.0
-        return max(1e-6, sum_q / (1 - sum_χ)^2 * ((1+Δ^2) * Φ_func(Δ) + Δ * φ_func(Δ)))
+        return sum_q / (1 - sum_χ)^2 * ((1+Δ^2) * Φ_func(Δ) + Δ * φ_func(Δ))
     else
-        return max(1e-6, sum_q / (1 - sum_χ)^2 * ((1+Δ^2) * Φ_func(-Δ) - Δ * φ_func(-Δ)))
+        return sum_q / (1 - sum_χ)^2 * ((1+Δ^2) * Φ_func(-Δ) - Δ * φ_func(-Δ))
     end
 end
 
@@ -63,8 +63,8 @@ function population_dynamics(p_k::Vector{Float64}, p_cav_k::Vector{Float64}, P::
 
     # Initialize averages to check convergence
     avg_μ = 0.0
-    avg_q = 0.0
-    avg_χ = 0.0
+ #   avg_q = 0.0
+ #   avg_χ = 0.0
  #   std_μ = 0.0
  #   std_q = 0.0
  #   std_χ = 0.0
@@ -111,8 +111,8 @@ function population_dynamics(p_k::Vector{Float64}, p_cav_k::Vector{Float64}, P::
 
         # Calculate new averages for convergence checking
         new_avg_μ = mean(μ_cav_population)
-        new_avg_q = mean(q_cav_population)
-        new_avg_χ = mean(χ_cav_population)
+     #   new_avg_q = mean(q_cav_population)
+     #   new_avg_χ = mean(χ_cav_population)
      #   new_std_μ = std(μ_population; mean=new_avg_μ)
      #   new_std_q = std(q_population; mean=new_avg_q)
      #   new_std_χ = std(χ_population; mean=new_avg_χ)
@@ -125,8 +125,8 @@ function population_dynamics(p_k::Vector{Float64}, p_cav_k::Vector{Float64}, P::
     #    max_diff = max(max_diff, abs(std_q - new_std_q))
     #    max_diff = max(max_diff, abs(std_χ - new_std_χ))
         avg_μ = new_avg_μ
-        avg_q = new_avg_q
-        avg_χ = new_avg_χ
+    #    avg_q = new_avg_q
+    #    avg_χ = new_avg_χ
 
         # Check for convergence
         if t % check_conv == 0  # Check every 10 iterations
