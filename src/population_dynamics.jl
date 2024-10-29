@@ -153,7 +153,7 @@ function sumpop_FC(μ_population::Vector{Float64}, q_population::Vector{Float64}
     sum_μ = 0.0
     sum_q = 0.0
     sum_χ = 0.0
-    @inbounds @fastmath @simd for j in 1:P
+    @inbounds @fastmath for j in 1:P
         if j == i
             continue
         end
