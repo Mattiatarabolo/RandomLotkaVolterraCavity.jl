@@ -197,7 +197,7 @@ function population_dynamics_FC(P::Int, tol::Float64, max_iter::Int, m::Float64,
                 J_population[j], J_prime_population[j] = sample_couplings(rng, m, σ², γ, P)
             end
             # Compute the new values for mu, q, chi using the update functions
-            sum_q, sum_χ, Ε, Δ = sumpop_FC(μ_cav_population, q_cav_population, χ_cav_population, J_population, J_prime_population, i, P)
+            sum_q, sum_χ, Ε, Δ = sumpop_FC(μ_population, q_population, χ_population, J_population, J_prime_population, i, P)
             μ_population[i] = f_μ(sum_χ, Ε, Δ)
             q_population[i] = f_q(sum_q, sum_χ, Δ)
             χ_population[i] = f_χ(sum_χ, Δ)
