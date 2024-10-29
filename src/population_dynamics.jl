@@ -240,5 +240,5 @@ function population_dynamics_FC(P::Int, tol::Float64, max_iter::Int, m::Float64,
         println("Reached max iterations without convergence.")
     end
 
-    return μ_population, q_population, χ_population, μ_population, q_population, χ_population
+    return μ_population, q_population, χ_population
 end
