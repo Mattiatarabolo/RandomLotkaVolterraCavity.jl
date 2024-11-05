@@ -107,6 +107,10 @@ function population_dynamics(p_k::Vector{Float64}, p_cav_k::Vector{Float64}, P::
         end
     end
 
+    μ_full_population = zeros(P)
+    q_full_population = zeros(P)
+    χ_full_population = zeros(P)
+
     # Update each site in the population
     @inbounds for i in shuffle(rng, 1:P)
         k_full = sample_degree(rng, 1:length(p_k), p_k)
