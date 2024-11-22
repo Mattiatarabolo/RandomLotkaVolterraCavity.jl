@@ -50,7 +50,7 @@ function f_χ(sum_χ::Float64, Δ::Float64)
 end
 
 # Function to run population dynamics with all the performance tips included
-function population_dynamics(p_k::Vector{Float64}, p_cav_k::Vector{Float64}, P::Int, tol::Float64, max_iter::Int, m::Float64, σ²::Float64, γ::Float64, K::Int; check_vars=CheckVars(0.0), error_func=error_func, check_conv=30, rng=Xoshiro(1234), verbose=false)
+function population_dynamics(p_k::Vector{Float64}, p_cav_k::Vector{Float64}, P::Int, tol::Float64, max_iter::Int, m::Float64, σ²::Float64, γ::Float64, K::Int; check_vars=Dict("avg_μ"=>0.0), error_func=error_func, check_conv=30, rng=Xoshiro(1234), verbose=false)
     # Initialize populations
     μ_cav_population = rand(rng, P)
     q_cav_population = rand(rng, P)
