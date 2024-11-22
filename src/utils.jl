@@ -24,3 +24,20 @@ function testvalues(μ, q, χ, sum_q, sum_χ, Δ)
         throw(ArgumentError("Invalid values"))
     end
 end
+
+
+function error_func(check_vars, μ_population, q_population, χ_population)
+    # Calculate new averages for convergence checking
+    new_avg_μ = mean(μ_population)
+
+    # Calculate the maximum change in the updates for convergence checking
+    max_diff = abs(check_vars.avg_μ - new_avg_μ)
+    check_vars.avg_μ = new_avg_μ
+
+    return max_diff
+end
+
+
+struct CheckVars 
+    avg_μ::Float64
+end

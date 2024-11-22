@@ -50,16 +50,13 @@ function f_χ(sum_χ::Float64, Δ::Float64)
 end
 
 # Function to run population dynamics with all the performance tips included
-function population_dynamics(p_k::Vector{Float64}, p_cav_k::Vector{Float64}, P::Int, tol::Float64, max_iter::Int, m::Float64, σ²::Float64, γ::Float64, K::Int; check_conv=30, rng=Xoshiro(1234), verbose=false)
+function population_dynamics(p_k::Vector{Float64}, p_cav_k::Vector{Float64}, P::Int, tol::Float64, max_iter::Int, m::Float64, σ²::Float64, γ::Float64, K::Int; check_vars=CheckVars(0.0), error_func=error_func, check_conv=30, rng=Xoshiro(1234), verbose=false)
     # Initialize populations
     μ_cav_population = rand(rng, P)
     q_cav_population = rand(rng, P)
     χ_cav_population = rand(rng, P)
     J_population = zeros(P)
     J_prime_population = zeros(P)
-
-    # Initialize averages to check convergence
-    avg_μ = 0.0
 
     # Loop over iterations until convergence or max_iter is reached
     converged = false
@@ -87,12 +84,7 @@ function population_dynamics(p_k::Vector{Float64}, p_cav_k::Vector{Float64}, P::
             testvalues(μ_cav_population[i], q_cav_population[i], χ_cav_population[i], sum_q_cav, sum_χ_cav, Δ_cav)
         end
 
-        # Calculate new averages for convergence checking
-        new_avg_μ = mean(μ_cav_population)
-
-        # Calculate the maximum change in the updates for convergence checking
-        max_diff = abs(avg_μ - new_avg_μ)
-        avg_μ = new_avg_μ
+        max_diff = error_func(check_vars, μ_cav_population, q_cav_population, χ_cav_population)
 
         # Check for convergence
         if t % check_conv == 0  # Check every 10 iterations
@@ -157,16 +149,13 @@ function sumpop_FC(μ_population::Vector{Float64}, q_population::Vector{Float64}
 end
 
 # Function to run population dynamics with all the performance tips included
-function population_dynamics_FC(P::Int, tol::Float64, max_iter::Int, m::Float64, σ²::Float64, γ::Float64; check_conv=30, rng=Xoshiro(1234), verbose=false)
+function population_dynamics_FC(P::Int, tol::Float64, max_iter::Int, m::Float64, σ²::Float64, γ::Float64; check_vars=CheckVars(0.0), error_func=error_func, check_conv=30, rng=Xoshiro(1234), verbose=false)
     # Initialize populations
     μ_population = rand(rng, P)
     q_population = rand(rng, P)
     χ_population = rand(rng, P)
     J_population = zeros(P)
     J_prime_population = zeros(P)
-
-    # Initialize averages to check convergence
-    avg_μ = 0.0
 
     # Loop over iterations until convergence or max_iter is reached
     converged = false
@@ -188,12 +177,7 @@ function population_dynamics_FC(P::Int, tol::Float64, max_iter::Int, m::Float64,
             testvalues(μ_population[i], q_population[i], χ_population[i], sum_q, sum_χ, Δ)  
         end
 
-        # Calculate new averages for convergence checking
-        new_avg_μ = mean(μ_population)
-
-        # Calculate the maximum change in the updates for convergence checking
-        max_diff = abs(avg_μ - new_avg_μ)
-        avg_μ = new_avg_μ
+        max_diff = error_func(check_vars, μ_population, q_population, χ_population)
 
         # Check for convergence
         if t % check_conv == 0  # Check every 10 iterations
