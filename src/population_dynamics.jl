@@ -149,7 +149,7 @@ function sumpop_FC(μ_population::Vector{Float64}, q_population::Vector{Float64}
 end
 
 # Function to run population dynamics with all the performance tips included
-function population_dynamics_FC(P::Int, tol::Float64, max_iter::Int, m::Float64, σ²::Float64, γ::Float64; check_vars=CheckVars(0.0), error_func=error_func, check_conv=30, rng=Xoshiro(1234), verbose=false)
+function population_dynamics_FC(P::Int, tol::Float64, max_iter::Int, m::Float64, σ²::Float64, γ::Float64; check_vars=Dict("avg_μ"=>0.0), error_func=error_func, check_conv=30, rng=Xoshiro(1234), verbose=false)
     # Initialize populations
     μ_population = rand(rng, P)
     q_population = rand(rng, P)
