@@ -59,7 +59,6 @@ function population_dynamics(p_k::Vector{Float64}, p_cav_k::Vector{Float64}, P::
     J_prime_population = zeros(P)
 
     # Loop over iterations until convergence or max_iter is reached
-    converged = false
     @showprogress for t in 1:max_iter
 
         # Update each site in the population
@@ -84,15 +83,14 @@ function population_dynamics(p_k::Vector{Float64}, p_cav_k::Vector{Float64}, P::
             testvalues(μ_cav_population[i], q_cav_population[i], χ_cav_population[i], sum_q_cav, sum_χ_cav, Δ_cav)
         end
 
-        max_diff = error_func(check_vars, μ_cav_population, q_cav_population, χ_cav_population)
+        converged = error_func(check_vars, μ_cav_population, q_cav_population, χ_cav_population, tol)
 
         # Check for convergence
         if t % check_conv == 0  # Check every 10 iterations
             if verbose
                 println("Iteration $t: max_diff = $max_diff")
             end
-            if max_diff < tol
-                converged = true
+            if converged && verbose
                 println("Converged after $t iterations.")
                 break
             end
@@ -121,11 +119,11 @@ function population_dynamics(p_k::Vector{Float64}, p_cav_k::Vector{Float64}, P::
         testvalues(μ_full_population[i], q_full_population[i], χ_full_population[i], sum_q_full, sum_χ_full, Δ_full) 
     end
 
-    if !converged
+    if !converged && verbose
         println("Reached max iterations without convergence.")
     end
 
-    return μ_full_population, q_full_population, χ_full_population, μ_cav_population, q_cav_population, χ_cav_population
+    return μ_full_population, q_full_population, χ_full_population, μ_cav_population, q_cav_population, χ_cav_population, converged
 end
 
 # Function to compute all the quantities obtain by the sum of neighbours' terms in the cavity update
@@ -158,7 +156,6 @@ function population_dynamics_FC(P::Int, tol::Float64, max_iter::Int, m::Float64,
     J_prime_population = zeros(P)
 
     # Loop over iterations until convergence or max_iter is reached
-    converged = false
     @showprogress for t in 1:max_iter
 
         # Update each site in the population
@@ -177,24 +174,23 @@ function population_dynamics_FC(P::Int, tol::Float64, max_iter::Int, m::Float64,
             testvalues(μ_population[i], q_population[i], χ_population[i], sum_q, sum_χ, Δ)  
         end
 
-        max_diff = error_func(check_vars, μ_population, q_population, χ_population)
+        converged = error_func(check_vars, μ_population, q_population, χ_population, tol)
 
         # Check for convergence
         if t % check_conv == 0  # Check every 10 iterations
             if verbose
                 println("Iteration $t: max_diff = $max_diff")
             end
-            if max_diff < tol
-                converged = true
+            if converged && verbose
                 println("Converged after $t iterations.")
                 break
             end
         end
     end
 
-    if !converged
+    if !converged && verbose
         println("Reached max iterations without convergence.")
     end
 
-    return μ_population, q_population, χ_population
+    return μ_population, q_population, χ_population, converged
 end
