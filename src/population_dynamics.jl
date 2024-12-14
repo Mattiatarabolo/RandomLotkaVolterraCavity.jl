@@ -58,6 +58,7 @@ function population_dynamics(p_k::Vector{Float64}, p_cav_k::Vector{Float64}, P::
     J_population = zeros(P)
     J_prime_population = zeros(P)
 
+    converged = false
     # Loop over iterations until convergence or max_iter is reached
     @showprogress for t in 1:max_iter
 
@@ -155,6 +156,7 @@ function population_dynamics_FC(P::Int, tol::Union{Float64,Vector{Float64}}, max
     J_population = zeros(P)
     J_prime_population = zeros(P)
 
+    converged = false
     # Loop over iterations until convergence or max_iter is reached
     @showprogress for t in 1:max_iter
 
