@@ -84,7 +84,7 @@ function population_dynamics(p_k::Vector{Float64}, p_cav_k::Vector{Float64}, P::
             testvalues(μ_cav_population[i], q_cav_population[i], χ_cav_population[i], sum_q_cav, sum_χ_cav, Δ_cav)
         end
 
-        converged = error_func(check_vars, μ_cav_population, q_cav_population, χ_cav_population, tol)
+        converged = error_func(check_vars, μ_cav_population, q_cav_population, χ_cav_population, tol, t, check_conv)
 
         # Check for convergence
         if t % check_conv == 0  # Check every 10 iterations
@@ -176,7 +176,7 @@ function population_dynamics_FC(P::Int, tol, max_iter::Int, m::Float64, σ²::Fl
             testvalues(μ_population[i], q_population[i], χ_population[i], sum_q, sum_χ, Δ)  
         end
 
-        converged = error_func(check_vars, μ_population, q_population, χ_population, tol)
+        converged = error_func(check_vars, μ_population, q_population, χ_population, tol, t, check_conv)
 
         # Check for convergence
         if t % check_conv == 0  # Check every 10 iterations
