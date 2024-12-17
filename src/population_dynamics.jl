@@ -91,8 +91,10 @@ function population_dynamics(p_k::Vector{Float64}, p_cav_k::Vector{Float64}, P::
             if verbose
                 println("Iteration $t: max_diff = $max_diff")
             end
-            if converged && verbose
-                println("Converged after $t iterations.")
+            if converged 
+                if verbose
+                    println("Converged after $t iterations.")
+                end
                 break
             end
         end
@@ -183,8 +185,10 @@ function population_dynamics_FC(P::Int, tol, max_iter::Int, m::Float64, σ²::Fl
             if verbose
                 println("Iteration $t: max_diff = $max_diff")
             end
-            if converged && verbose
-                println("Converged after $t iterations.")
+            if converged
+                if verbose
+                    println("Converged after $t iterations.")
+                end
                 break
             end
         end
