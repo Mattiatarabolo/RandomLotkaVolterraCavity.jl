@@ -8,7 +8,14 @@ function Φ_func(x::Float64)
 end
 
 # Function to compute all the quantities obtain by the sum of neighbours' terms in the cavity update
-function sumpop(μ_population::Vector{Float64}, q_population::Vector{Float64}, χ_population::Vector{Float64}, J_population::Vector{Float64}, J_prime_population::Vector{Float64}, neighbors_indices::Vector{Int})
+function sumpop(
+    μ_population::Vector{Float64}, 
+    q_population::Vector{Float64}, 
+    χ_population::Vector{Float64}, 
+    J_population::Vector{Float64}, 
+    J_prime_population::Vector{Float64}, 
+    neighbors_indices::Vector{Int})
+    
     sum_μ = 0.0
     sum_q = 0.0
     sum_χ = 0.0
@@ -50,7 +57,21 @@ function f_χ(sum_χ::Float64, Δ::Float64)
 end
 
 # Function to run population dynamics with all the performance tips included
-function population_dynamics(p_k::Vector{Float64}, p_cav_k::Vector{Float64}, P::Int, tol, max_iter::Int, m::Float64, σ²::Float64, γ::Float64, K::Int; check_vars=Dict("avg_μ"=>0.0), error_func=error_func, check_conv=30, rng=Xoshiro(1234), verbose=false)
+function population_dynamics(
+    p_k::Vector{Float64}, 
+    p_cav_k::Vector{Float64}, 
+    P::Int, tol, 
+    max_iter::Int, 
+    m::Float64, 
+    σ²::Float64, 
+    γ::Float64, 
+    K::Int; 
+    check_vars=Dict("avg_μ"=>0.0), 
+    error_func=error_func, 
+    check_conv=30, 
+    rng=Xoshiro(1234), 
+    verbose=false)
+
     # Initialize populations
     μ_cav_population = rand(rng, P)
     q_cav_population = rand(rng, P)
@@ -130,7 +151,15 @@ function population_dynamics(p_k::Vector{Float64}, p_cav_k::Vector{Float64}, P::
 end
 
 # Function to compute all the quantities obtain by the sum of neighbours' terms in the cavity update
-function sumpop_FC(μ_population::Vector{Float64}, q_population::Vector{Float64}, χ_population::Vector{Float64}, J_population::Vector{Float64}, J_prime_population::Vector{Float64}, i::Int, P::Int)
+function sumpop_FC(
+    μ_population::Vector{Float64}, 
+    q_population::Vector{Float64}, 
+    χ_population::Vector{Float64}, 
+    J_population::Vector{Float64}, 
+    J_prime_population::Vector{Float64}, 
+    i::Int, 
+    P::Int)
+
     sum_μ = 0.0
     sum_q = 0.0
     sum_χ = 0.0
@@ -150,7 +179,19 @@ function sumpop_FC(μ_population::Vector{Float64}, q_population::Vector{Float64}
 end
 
 # Function to run population dynamics with all the performance tips included
-function population_dynamics_FC(P::Int, tol, max_iter::Int, m::Float64, σ²::Float64, γ::Float64; check_vars=Dict("avg_μ"=>0.0), error_func=error_func, check_conv=30, rng=Xoshiro(1234), verbose=false)
+function population_dynamics_FC(
+    P::Int, 
+    tol, 
+    max_iter::Int, 
+    m::Float64, 
+    σ²::Float64, 
+    γ::Float64; 
+    check_vars=Dict("avg_μ"=>0.0), 
+    error_func=error_func, 
+    check_conv=30, 
+    rng=Xoshiro(1234), 
+    verbose=false)
+
     # Initialize populations
     μ_population = rand(rng, P)
     q_population = rand(rng, P)

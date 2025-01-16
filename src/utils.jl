@@ -36,3 +36,70 @@ function error_func(check_vars, μ_population, q_population, χ_population)
 
     return max_diff
 end
+
+
+########################## MCMC ###########################
+
+# Define the Random-Lotka-Volterra system of equations
+function glv!(du, u, p, t)  # p = (J, zero_threshold)
+    J, zero_threshold = p
+    mul!(du, J, u)
+    du .= u .* (1 .- u .+ du)
+    # Apply zero threshold
+    u[u .< zero_threshold] .= 0.0
+end
+
+function jac_glv!(Jac, u, p, t)
+    J, _ = p
+    # Fill the diagonal
+    @inbounds @fastmath @simd for i in 1:length(u)
+        Jac[i, i] = 1 - 2 * u[i]
+    end
+    # Fill the off-diagonal elements
+    @inbounds @fastmath for j in 1:length(u)
+        @inbounds @fastmath for k in nzrange(J, j)
+            Jac[J.rowval[k], j] = J.nzval[k] * u[j]
+        end
+    end
+end
+
+"""
+Simulates the Generalized Lotka-Volterra system.
+
+Arguments:
+- J: Transposed sparse interaction matrix (NxN), where J[j, i] is the interaction strength from species i to species j.
+- x0: Initial abundances (Vector of size N).
+- tmax: End time for the simulation.
+- dt_save: Time step for saving trajectories.
+- zero_threshold: Threshold below which abundances are set to zero.
+
+Returns:
+- t_vals: Time points where trajectories are saved.
+- trajectories: Matrix of size (N x length(t_vals)) storing species abundances.
+"""
+function sample(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64}, zero_threshold::Float64)
+    # Ensure the initial condition has the correct size
+    @assert size(J, 1) == size(J, 2) "Interaction matrix J must be square."
+    N = size(J, 1)
+    @assert length(x0) == N "Initial condition x0 must have size N."
+
+    # Problem setup
+    tspan = (0.0, tmax)
+    p = (J, zero_threshold)
+    Jac = deepcopy(J)
+    @inbounds @fastmath @simd for i in 1:N
+        Jac[i, i] = 1.0
+    end
+    f! = ODEFunction(glv!, jac=jac_glv!, jac_prototype=Jac)
+    prob = ODEProblem(f!, x0, tspan, p)
+
+    # Solver options
+    sol = solve(prob, saveat=tsave, reltol=1e-10, abstol=1e-10)
+
+    # Extract the time points and trajectories
+    t_vals = sol.t
+    trajectories = hcat(sol.u...) # Convert solution vectors to a matrix
+
+    return t_vals, trajectories, sol
+end
+
