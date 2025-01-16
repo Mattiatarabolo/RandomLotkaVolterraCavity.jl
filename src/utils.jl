@@ -64,20 +64,33 @@ function jac_glv!(Jac, u, p, t)
 end
 
 """
+    sample(
+        J::SparseMatrixCSC{Float64, Int}, 
+        x0::Vector{Float64}, 
+        tmax::Float64, 
+        tsave::Vector{Float64}, 
+        zero_threshold::Float64)
+
 Simulates the Generalized Lotka-Volterra system.
 
 Arguments:
 - J: Transposed sparse interaction matrix (NxN), where J[j, i] is the interaction strength from species i to species j.
 - x0: Initial abundances (Vector of size N).
 - tmax: End time for the simulation.
-- dt_save: Time step for saving trajectories.
+- tsave: Vector of times for saving trajectories.
 - zero_threshold: Threshold below which abundances are set to zero.
 
 Returns:
 - t_vals: Time points where trajectories are saved.
 - trajectories: Matrix of size (N x length(t_vals)) storing species abundances.
 """
-function sample(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64}, zero_threshold::Float64)
+function sample(
+            J::SparseMatrixCSC{Float64, Int}, 
+            x0::Vector{Float64}, 
+            tmax::Float64, 
+            tsave::Vector{Float64}, 
+            zero_threshold::Float64)
+            
     # Ensure the initial condition has the correct size
     @assert size(J, 1) == size(J, 2) "Interaction matrix J must be square."
     N = size(J, 1)
