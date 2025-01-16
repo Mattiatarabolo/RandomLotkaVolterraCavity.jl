@@ -64,7 +64,7 @@ function jac_glv!(Jac, u, p, t)
 end
 
 """
-    sample(
+    sample_glv(
         J::SparseMatrixCSC{Float64, Int}, 
         x0::Vector{Float64}, 
         tmax::Float64, 
