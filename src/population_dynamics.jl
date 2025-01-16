@@ -160,9 +160,12 @@ function population_dynamics(
             end
             if plothist
                 update_full!(p_k, P, m, σ², γ, K, rng, μ_cav_population, q_cav_population, χ_cav_population, J_population, J_prime_population, μ_full_population, q_full_population, χ_full_population)
-                axs[1].hist(μ_full_population, bins=20, alpha=0.5)
-                axs[2].hist(q_full_population, bins=20, alpha=0.5)
-                axs[3].hist(χ_full_population, bins=20, alpha=0.5)
+                axs[1].cla()
+                axs[1].hist(μ_full_population, bins=20, alpha=0.5, color="blue")
+                axs[2].cla()
+                axs[2].hist(q_full_population, bins=20, alpha=0.5, color="blue")
+                axs[3].cla()
+                axs[3].hist(χ_full_population, bins=20, alpha=0.5, color="blue")
             end
         end
     end
