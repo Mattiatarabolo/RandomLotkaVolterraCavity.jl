@@ -1497,9 +1497,7 @@ version = "1.7.0"
 
 [[deps.RandomLotkaVolterraCavity]]
 deps = ["DifferentialEquations", "Graphs", "LinearAlgebra", "ProgressMeter", "PyCall", "PyPlot", "Random", "SparseArrays", "SpecialFunctions", "StatsBase"]
-git-tree-sha1 = "2d9cf42b9062ffd2a84bc1d46890e7ed9231405c"
-repo-rev = "main"
-repo-url = ".."
+path = ".."
 uuid = "e0cb5db2-507d-4330-81aa-f62556075e35"
 version = "1.0.0-DEV"
 
