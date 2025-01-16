@@ -84,7 +84,7 @@ Returns:
 - t_vals: Time points where trajectories are saved.
 - trajectories: Matrix of size (N x length(t_vals)) storing species abundances.
 """
-function sample(
+function sample_glv(
             J::SparseMatrixCSC{Float64, Int}, 
             x0::Vector{Float64}, 
             tmax::Float64, 
