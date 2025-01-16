@@ -139,6 +139,10 @@ function population_dynamics(
         axs[1].set_ylabel("Frequency")
     end
 
+    μxlim = (0, 1)
+    qxlim = (0, 1)
+    Χxlim = (0, 1)
+
     converged = false
     # Loop over iterations until convergence or max_iter is reached
     @showprogress for t in 1:max_iter
