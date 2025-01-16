@@ -160,19 +160,32 @@ function population_dynamics(
             end
             if plothist
                 update_full!(p_k, P, m, σ², γ, K, rng, μ_cav_population, q_cav_population, χ_cav_population, J_population, J_prime_population, μ_full_population, q_full_population, χ_full_population)
+                
+                if t==check_conv
+                    μxlim = (minimum(μ_full_population), maximum(μ_full_population))
+                    qxlim = (minimum(q_full_population), maximum(q_full_population))
+                    Χxlim = (minimum(χ_full_population), maximum(χ_full_population))
+                end
+                
                 axs[1].cla()
                 axs[1].set_title("Histogram of μ values")
                 axs[1].set_xlabel("μ")
                 axs[1].set_ylabel("Frequency")
-                axs[1].hist(μ_full_population, bins=20, alpha=0.5, color="blue")
+                axs[1].set_xlim(μxlim)
+                axs[1].set_ylim((0,1))
+                axs[1].hist(μ_full_population, bins=20, alpha=0.5, density=true, color="blue")
                 axs[2].cla()
                 axs[2].set_title("Histogram of q values")
                 axs[2].set_xlabel("q")
-                axs[2].hist(q_full_population, bins=20, alpha=0.5, color="blue")
+                axs[2].set_xlim(qxlim)
+                axs[2].set_ylim((0,1))
+                axs[2].hist(q_full_population, bins=20, alpha=0.5, density=true, color="blue")
                 axs[3].cla()
                 axs[3].set_title("Histogram of χ values")
                 axs[3].set_xlabel("χ")
-                axs[3].hist(χ_full_population, bins=20, alpha=0.5, color="blue")
+                axs[3].set_xlim(Χxlim)
+                axs[3].set_ylim((0,1))
+                axs[3].hist(χ_full_population, bins=20, alpha=0.5, density=true, color="blue")
             end
         end
     end
