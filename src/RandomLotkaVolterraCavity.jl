@@ -1,7 +1,7 @@
 module RandomLotkaVolterraCavity
     using Random, StatsBase, SpecialFunctions, ProgressMeter, SparseArrays, Graphs, OrdinaryDiffEq, LinearAlgebra
 
-    export population_dynamics, population_dynamics_FC, sample
+    export population_dynamics, population_dynamics_FC, sample, sample_couplings
 
     include("utils.jl")
     include("population_dynamics.jl")
