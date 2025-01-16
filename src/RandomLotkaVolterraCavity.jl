@@ -1,5 +1,5 @@
 module RandomLotkaVolterraCavity
-    using Random, StatsBase, SpecialFunctions, ProgressMeter, SparseArrays, Graphs, DifferentialEquations, LinearAlgebra
+    using Random, StatsBase, SpecialFunctions, ProgressMeter, SparseArrays, Graphs, DifferentialEquations, LinearAlgebra, PyPlot, PyCall
 
     export population_dynamics, population_dynamics_FC, sample, sample_couplings
 
