@@ -56,7 +56,12 @@ function f_χ(sum_χ::Float64, Δ::Float64)
     end
 end
 
-function update_cav!(p_cav_k, P, m, σ², γ, K, rng, μ_cav_population, q_cav_population, χ_cav_population, J_population, J_prime_population)
+
+####################################################################################################################################################
+########################################################## Sparse graph ###########################################################################
+####################################################################################################################################################
+
+function update_cav!(p_cav_k, P, m, σ², γ, K, rng, μ_cav_population, q_cav_population, χ_cav_population, J_population, J_prime_population, zero_thresholds)
     # Update each site in the population
     @inbounds for i in shuffle(rng, 1:P)
         # Sample the degree k
@@ -73,14 +78,14 @@ function update_cav!(p_cav_k, P, m, σ², γ, K, rng, μ_cav_population, q_cav_p
 
         # Compute the new values for mu, q, chi using the update functions
         sum_q_cav, sum_χ_cav, Ε_cav, Δ_cav = sumpop(μ_cav_population, q_cav_population, χ_cav_population, J_population, J_prime_population, neighbors_indices_cav)
-        μ_cav_population[i] = f_μ(sum_χ_cav, Ε_cav, Δ_cav)
-        q_cav_population[i] = f_q(sum_q_cav, sum_χ_cav, Δ_cav)
-        χ_cav_population[i] = f_χ(sum_χ_cav, Δ_cav)
+        μ_cav_population[i] = max(f_μ(sum_χ_cav, Ε_cav, Δ_cav), zero_thresholds["μ"])
+        q_cav_population[i] = max(f_q(sum_q_cav, sum_χ_cav, Δ_cav), zero_thresholds["q"])
+        χ_cav_population[i] = max(f_χ(sum_χ_cav, Δ_cav), zero_thresholds["Χ"])
         testvalues(μ_cav_population[i], q_cav_population[i], χ_cav_population[i], sum_q_cav, sum_χ_cav, Δ_cav)
     end
 end
 
-function update_full!(p_k, P, m, σ², γ, K, rng, μ_cav_population, q_cav_population, χ_cav_population, J_population, J_prime_population, μ_full_population, q_full_population, χ_full_population)
+function update_full!(p_k, P, m, σ², γ, K, rng, μ_cav_population, q_cav_population, χ_cav_population, J_population, J_prime_population, μ_full_population, q_full_population, χ_full_population, zero_thresholds)
     # Update each site in the population
     @inbounds for i in shuffle(rng, 1:P)
         k_full = sample_degree(rng, 1:length(p_k), p_k)
@@ -93,9 +98,9 @@ function update_full!(p_k, P, m, σ², γ, K, rng, μ_cav_population, q_cav_popu
         end
         # Compute the new values for mu, q, chi using the update functions
         sum_q_full, sum_χ_full, Ε_full, Δ_full = sumpop(μ_cav_population, q_cav_population, χ_cav_population, J_population, J_prime_population, neighbors_indices_full)
-        μ_full_population[i] = f_μ(sum_χ_full, Ε_full, Δ_full)
-        q_full_population[i] = f_q(sum_q_full, sum_χ_full, Δ_full)
-        χ_full_population[i] = f_χ(sum_χ_full, Δ_full)
+        μ_full_population[i] = max(f_μ(sum_χ_full, Ε_full, Δ_full), zero_thresholds["μ"])
+        q_full_population[i] = max(f_q(sum_q_full, sum_χ_full, Δ_full), zero_thresholds["q"])
+        χ_full_population[i] = max(f_χ(sum_χ_full, Δ_full), zero_thresholds["Χ"])
         testvalues(μ_full_population[i], q_full_population[i], χ_full_population[i], sum_q_full, sum_χ_full, Δ_full) 
     end
 end
@@ -110,7 +115,8 @@ function population_dynamics(
     m::Float64, 
     σ²::Float64, 
     γ::Float64, 
-    K::Int; 
+    K::Int;
+    zero_thresholds=Dict("μ"=>1e-3, "q"=>1e-4, "Χ"=>1e-4),
     check_vars=Dict("avg_μ"=>0.0), 
     error_func=error_func, 
     check_conv=30, 
@@ -129,7 +135,7 @@ function population_dynamics(
     J_prime_population = zeros(P)
 
     if plothist
-        fig, axs = plt.subplots(1,3,figsize=(15, 8))
+        _, axs = plt.subplots(1,3,figsize=(10, 4))
         axs[1].set_title("Histogram of μ values")
         axs[2].set_title("Histogram of q values")
         axs[3].set_title("Histogram of χ values")
@@ -147,7 +153,7 @@ function population_dynamics(
     # Loop over iterations until convergence or max_iter is reached
     @showprogress for t in 1:max_iter
 
-        update_cav!(p_cav_k, P, m, σ², γ, K, rng, μ_cav_population, q_cav_population, χ_cav_population, J_population, J_prime_population)
+        update_cav!(p_cav_k, P, m, σ², γ, K, rng, μ_cav_population, q_cav_population, χ_cav_population, J_population, J_prime_population, zero_thresholds)
 
         converged = error_func(check_vars, μ_cav_population, q_cav_population, χ_cav_population, tol, t, check_conv)
 
@@ -163,12 +169,12 @@ function population_dynamics(
                 break
             end
             if plothist
-                update_full!(p_k, P, m, σ², γ, K, rng, μ_cav_population, q_cav_population, χ_cav_population, J_population, J_prime_population, μ_full_population, q_full_population, χ_full_population)
+                update_full!(p_k, P, m, σ², γ, K, rng, μ_cav_population, q_cav_population, χ_cav_population, J_population, J_prime_population, μ_full_population, q_full_population, χ_full_population, zero_thresholds)
                 
                 if t==check_conv
-                    μxlim = (minimum(μ_full_population), maximum(μ_full_population))
-                    qxlim = (minimum(q_full_population), maximum(q_full_population))
-                    Χxlim = (minimum(χ_full_population), maximum(χ_full_population))
+                    μxlim = (0, maximum(μ_full_population))
+                    qxlim = (0, maximum(q_full_population))
+                    Χxlim = (0, maximum(χ_full_population))
                 end
                 
                 axs[1].cla()
@@ -177,24 +183,24 @@ function population_dynamics(
                 axs[1].set_ylabel("Frequency")
                 axs[1].set_xlim(μxlim)
                 axs[1].set_ylim((0,1))
-                axs[1].hist(μ_full_population, bins=20, alpha=0.5, density=true, color="blue")
+                axs[1].hist(μ_full_population, bins=20, alpha=0.5, density=true, color="C0")
                 axs[2].cla()
                 axs[2].set_title("Histogram of q values")
                 axs[2].set_xlabel("q")
                 axs[2].set_xlim(qxlim)
                 axs[2].set_ylim((0,1))
-                axs[2].hist(q_full_population, bins=20, alpha=0.5, density=true, color="blue")
+                axs[2].hist(q_full_population, bins=20, alpha=0.5, density=true, color="C1")
                 axs[3].cla()
                 axs[3].set_title("Histogram of χ values")
                 axs[3].set_xlabel("χ")
                 axs[3].set_xlim(Χxlim)
                 axs[3].set_ylim((0,1))
-                axs[3].hist(χ_full_population, bins=20, alpha=0.5, density=true, color="blue")
+                axs[3].hist(χ_full_population, bins=20, alpha=0.5, density=true, color="C2")
             end
         end
     end
 
-    update_full!(p_k, P, m, σ², γ, K, rng, μ_cav_population, q_cav_population, χ_cav_population, J_population, J_prime_population, μ_full_population, q_full_population, χ_full_population)
+    update_full!(p_k, P, m, σ², γ, K, rng, μ_cav_population, q_cav_population, χ_cav_population, J_population, J_prime_population, μ_full_population, q_full_population, χ_full_population, zero_thresholds)
 
     if !converged && verbose
         println("Reached max iterations without convergence.")
@@ -206,9 +212,10 @@ end
 
 
 
-#######################################################
-################ Fully connected graph ################
-#######################################################
+####################################################################################################################################################
+########################################################## Fully connected graph ###################################################################
+####################################################################################################################################################
+
 # Function to compute all the quantities obtain by the sum of neighbours' terms in the cavity update
 function sumpop_FC(
     μ_population::Vector{Float64}, 

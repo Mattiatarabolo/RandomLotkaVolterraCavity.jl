@@ -107,7 +107,7 @@ function sample_glv(
     prob = ODEProblem(f!, x0, tspan, p)
 
     # Solver options
-    sol = solve(prob, saveat=tsave, reltol=1e-10, abstol=1e-10)
+    sol = solve(prob, Tsit5(), reltol=1e-8, abstol=1e-8, saveat=tsave)
 
     # Extract the time points and trajectories
     t_vals = sol.t
