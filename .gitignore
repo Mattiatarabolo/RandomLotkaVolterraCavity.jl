@@ -5,3 +5,16 @@
 /docs/Manifest.toml
 /docs/build/
 simulations/
+.DS_Store
+notes/Random_ecosystems.aux
+notes/Random_ecosystems.bbl
+notes/Random_ecosystems.blg
+notes/Random_ecosystems.cb
+notes/Random_ecosystems.cb2
+notes/Random_ecosystems.fdb_latexmk
+notes/Random_ecosystems.fls
+notes/Random_ecosystems.log
+notes/Random_ecosystems.out
+notes/Random_ecosystems.synctex.gz
+notes/Random_ecosystemsNotes.bib
+.DS_Store
