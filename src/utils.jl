@@ -42,15 +42,13 @@ end
 
 # Define the Random-Lotka-Volterra system of equations
 function glv!(du, u, p, t)  # p = (J, zero_threshold)
-    J, zero_threshold = p
+    J = p
     mul!(du, J, u)
     du .= u .* (1 .- u .+ du)
-    # Apply zero threshold
-    u[u .< zero_threshold] .= 0.0
 end
 
 function jac_glv!(Jac, u, p, t)
-    J, _ = p
+    J = p
     # Fill the diagonal
     @inbounds @fastmath @simd for i in 1:length(u)
         Jac[i, i] = 1 - 2 * u[i]
@@ -88,8 +86,7 @@ function sample_glv(
             J::SparseMatrixCSC{Float64, Int}, 
             x0::Vector{Float64}, 
             tmax::Float64, 
-            tsave::Vector{Float64}, 
-            zero_threshold::Float64)
+            tsave::Vector{Float64})
             
     # Ensure the initial condition has the correct size
     @assert size(J, 1) == size(J, 2) "Interaction matrix J must be square."
@@ -98,7 +95,7 @@ function sample_glv(
 
     # Problem setup
     tspan = (0.0, tmax)
-    p = (J, zero_threshold)
+    p = J
     Jac = deepcopy(J)
     @inbounds @fastmath @simd for i in 1:N
         Jac[i, i] = 1.0
