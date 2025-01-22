@@ -1,11 +1,10 @@
-.DS_Store
+*.DS_Store
 *.jl.*.cov
 *.jl.cov
 *.jl.mem
 /docs/Manifest.toml
 /docs/build/
 simulations/
-.DS_Store
 notes/Random_ecosystems.aux
 notes/Random_ecosystems.bbl
 notes/Random_ecosystems.blg
@@ -17,4 +16,3 @@ notes/Random_ecosystems.log
 notes/Random_ecosystems.out
 notes/Random_ecosystems.synctex.gz
 notes/Random_ecosystemsNotes.bib
-.DS_Store
