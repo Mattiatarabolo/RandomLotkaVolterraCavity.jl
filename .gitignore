@@ -6,6 +6,7 @@
 /docs/Manifest.toml
 /docs/build/
 simulations/
+.github/
 notes/Random_ecosystems.aux
 notes/Random_ecosystems.bbl
 notes/Random_ecosystems.blg
