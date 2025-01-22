@@ -34,25 +34,25 @@ end
 # Placeholder update functions, where you can optimize the internal logic of f_mu, f_q, f_chi
 function f_μ(sum_χ::Float64, Ε::Float64, Δ::Float64)
     if sum_χ < 1.0
-        return Ε / (1 - sum_χ) * (Δ * Φ_func(Δ) + φ_func(Δ))
+        return Ε / (1 - sum_χ) * (Δ * Φ_func(Δ) + φ_func(Δ)) / Φ_func(Δ)
     else
-        return Ε / (1 - sum_χ) * (Δ * Φ_func(-Δ) - φ_func(-Δ))
+        return Ε / (1 - sum_χ) * (Δ * Φ_func(-Δ) - φ_func(-Δ)) / Φ_func(Δ)
     end
 end
 
 function f_q(sum_q::Float64, sum_χ::Float64, Δ::Float64)
     if sum_χ < 1.0
-        return sum_q / (1 - sum_χ)^2 * ((1+Δ^2) * Φ_func(Δ) + Δ * φ_func(Δ))
+        return sum_q / (1 - sum_χ)^2 * ((1+Δ^2) * Φ_func(Δ) + Δ * φ_func(Δ)) / Φ_func(Δ)
     else
-        return sum_q / (1 - sum_χ)^2 * ((1+Δ^2) * Φ_func(-Δ) - Δ * φ_func(-Δ))
+        return sum_q / (1 - sum_χ)^2 * ((1+Δ^2) * Φ_func(-Δ) - Δ * φ_func(-Δ)) / Φ_func(Δ)
     end
 end
 
 function f_χ(sum_χ::Float64, Δ::Float64)
     if sum_χ < 1.0
-        return 1 / (1 - sum_χ) * Φ_func(Δ)
+        return 1 / (1 - sum_χ) * Φ_func(Δ) / Φ_func(Δ)
     else
-        return 1 / (1 - sum_χ) * Φ_func(-Δ)
+        return 1 / (1 - sum_χ) * Φ_func(-Δ) / Φ_func(Δ)
     end
 end
 
