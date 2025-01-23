@@ -6,9 +6,9 @@ function sample_couplings(rng, m::Float64, σ²::Float64, γ::Float64, K::Int)
     return J, J_prime
 end
 
-function sample_degree(rng::AbstractRNG, ks::AbstractRange, p_k::Vector{Float64})
+function sample_degree(rng::AbstractRNG, p_k::Vector{Float64})
     w = Weights(p_k)
-    return sample(rng, ks, w)
+    return sample(rng, w)
 end
 
 function testvalues(sum_μ, sum_q, sum_χ, Ε, Δ)

@@ -61,11 +61,12 @@ end
 ########################################################## Sparse graph ###########################################################################
 ####################################################################################################################################################
 
-function update_cav!(p_cav_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_population, Chi_cav_population, J_population, J_prime_population)
+function update_cav!(p_cav_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_population, Chi_cav_population, J_population, J_prime_population, indices)
     # Update each site in the population
     @inbounds for i in shuffle(rng, 1:P)
         # Sample the degree k
-        k_cav = sample_degree(rng, 0:length(p_cav_k)-1, p_cav_k)
+        k_cav = sample_degree(rng, p_cav_k)
+        k_cav -= 1
 
         if k_cav == 0
             mu_cav_population[i] = 1.0
@@ -75,13 +76,15 @@ function update_cav!(p_cav_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_p
         end
 
         # Get k random neighbors
-        neighbors_indices_cav = sample(rng, filter!(x->x≠i,collect(1:P)), k_cav; replace=false)
+        neighbors_indices_cav = sample(rng, indices, k_cav)#; replace=false)
         
         # CAVITY UPDATE
         # Sample k_cav pairs of correlated J, J' values
         @inbounds for j in neighbors_indices_cav
             J_population[j], J_prime_population[j] = sample_couplings(rng, m, σ², γ, K)
         end
+
+        ## We could sample a bigger population of J at the beginning and sample from it ##
 
         # Compute the new values for mu, q, chi using the update functions
         sum_q_cav, sum_Chi_cav, Ε_cav, Δ_cav = sumpop(mu_cav_population, q_cav_population, Chi_cav_population, J_population, J_prime_population, neighbors_indices_cav)
@@ -92,10 +95,11 @@ function update_cav!(p_cav_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_p
     end
 end
 
-function update_full!(p_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_population, Chi_cav_population, J_population, J_prime_population, mu_full_population, q_full_population, Chi_full_population)
+function update_full!(p_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_population, Chi_cav_population, J_population, J_prime_population, mu_full_population, q_full_population, Chi_full_population, indices)
     # Update each site in the population
-    @inbounds for i in shuffle(rng, 1:P)
-        k_full = sample_degree(rng, 0:length(p_k)-1, p_k)
+    @inbounds @fastmath for i in shuffle(rng, 1:P)
+        k_full = sample_degree(rng, p_k)
+        k_full -= 1
 
         if k_full == 0
             mu_full_population[i] = 1.0
@@ -104,11 +108,11 @@ function update_full!(p_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_popu
             continue
         end
 
-        neighbors_indices_full = sample(rng, filter!(x->x≠i,collect(1:P)), k_full; replace=false)
+        neighbors_indices_full = sample(rng, indices, k_full; replace=false)
 
         # FULL UPDATE
         # Sample k_cav pairs of correlated J, J' values
-        @inbounds for j in neighbors_indices_full
+        @inbounds @fastmath for j in neighbors_indices_full
             J_population[j], J_prime_population[j] = sample_couplings(rng, m, σ², γ, K)
         end
         # Compute the new values for mu, q, chi using the update functions
@@ -141,12 +145,13 @@ function population_dynamics(
     # Initialize populations
     mu_cav_population = rand(rng, P)
     q_cav_population = rand(rng, P)
-    Chi_cav_population = rand(rng, P)
+    Chi_cav_population = rand(rng, P) .- 0.3
     mu_full_population = zeros(P)
     q_full_population = zeros(P)
     Chi_full_population = zeros(P)
     J_population = zeros(P)
     J_prime_population = zeros(P)
+    indices = collect(1:P)
 
     if plothist
         _, axs = plt.subplots(1,3,figsize=(10, 4))
@@ -163,7 +168,7 @@ function population_dynamics(
     # Loop over iterations until convergence or max_iter is reached
     @showprogress for t in 1:max_iter
 
-        update_cav!(p_cav_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_population, Chi_cav_population, J_population, J_prime_population)
+        update_cav!(p_cav_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_population, Chi_cav_population, J_population, J_prime_population, indices)
 
         converged = error_func(check_vars, mu_cav_population, q_cav_population, Chi_cav_population, tol, t, check_conv)
 
@@ -179,11 +184,11 @@ function population_dynamics(
                 break
             end
             if plothist
-                update_full!(p_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_population, Chi_cav_population, J_population, J_prime_population, mu_full_population, q_full_population, Chi_full_population)
+                update_full!(p_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_population, Chi_cav_population, J_population, J_prime_population, mu_full_population, q_full_population, Chi_full_population, indices)
                 
                 if t==check_conv
                     axs[1].cla()
-                    fmu, _ = axs[1].hist(mu_full_population, bins=20, alpha=0.5, density=true, color="C0")
+                    fmu, _ = axs[1].hist(mu_full_population, bins=30, alpha=0.5, density=true, color="C0")
                     muxlim = (0, maximum(mu_full_population))
                     muylim = (0, maximum(fmu)*1.1)
                     axs[1].set_title("Histogram of μ values")
@@ -193,7 +198,7 @@ function population_dynamics(
                     axs[1].set_ylim(muylim)
 
                     axs[2].cla()
-                    fq, _ = axs[2].hist(q_full_population, bins=20, alpha=0.5, density=true, color="C1")
+                    fq, _ = axs[2].hist(q_full_population, bins=30, alpha=0.5, density=true, color="C1")
                     qxlim = (0, maximum(q_full_population))
                     qylim = (0, maximum(fq)*1.1)
                     axs[2].set_title("Histogram of q values")
@@ -202,16 +207,16 @@ function population_dynamics(
                     axs[2].set_ylim(qylim)
 
                     axs[3].cla()
-                    fChi, _ = axs[3].hist(Chi_full_population, bins=20, alpha=0.5, density=true, color="C2")
-                    Chixlim = (0, maximum(Chi_full_population))
-                    Chiylim = (0, maximum(fChi)*1.1)
+                    fChi, _ = axs[3].hist(Chi_full_population, bins=30, alpha=0.5, density=true, color="C2")
+                    Chixlim = (minimum(Chi_full_population), maximum(Chi_full_population))
+                    Chiylim = (minimum(Chi_full_population), maximum(fChi)*1.1)
                     axs[3].set_title("Histogram of Χ values")
                     axs[3].set_xlabel("Χ")
                     axs[3].set_xlim(Chixlim)
                     axs[3].set_ylim(Chiylim)
                 else 
                     axs[1].cla()
-                    axs[1].hist(mu_full_population, bins=20, alpha=0.5, density=true, color="C0")
+                    axs[1].hist(mu_full_population, bins=30, alpha=0.5, density=true, color="C0")
                     axs[1].set_title("Histogram of μ values")
                     axs[1].set_xlabel("μ")
                     axs[1].set_ylabel("Frequency")
@@ -219,14 +224,14 @@ function population_dynamics(
                     axs[1].set_ylim(muylim)
 
                     axs[2].cla()
-                    axs[2].hist(q_full_population, bins=20, alpha=0.5, density=true, color="C1")
+                    axs[2].hist(q_full_population, bins=30, alpha=0.5, density=true, color="C1")
                     axs[2].set_title("Histogram of q values")
                     axs[2].set_xlabel("q")
                     axs[2].set_xlim(qxlim)
                     axs[2].set_ylim(qylim)
 
                     axs[3].cla()
-                    axs[3].hist(Chi_full_population, bins=20, alpha=0.5, density=true, color="C2")
+                    axs[3].hist(Chi_full_population, bins=30, alpha=0.5, density=true, color="C2")
                     axs[3].set_title("Histogram of Χ values")
                     axs[3].set_xlabel("Χ")
                     axs[3].set_xlim(Chixlim)
@@ -236,7 +241,7 @@ function population_dynamics(
         end
     end
 
-    update_full!(p_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_population, Chi_cav_population, J_population, J_prime_population, mu_full_population, q_full_population, Chi_full_population)
+    update_full!(p_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_population, Chi_cav_population, J_population, J_prime_population, mu_full_population, q_full_population, Chi_full_population, indices)
 
     if !converged && verbose
         println("Reached max iterations without convergence.")
