@@ -20,13 +20,10 @@ function sumpop(
     sum_q = 0.0
     sum_Chi = 0.0
     @inbounds @fastmath @simd for j in neighbors_indices
-        sum_mu += J_population[j]
-        sum_q += J_population[j]^2
-        sum_Chi += J_population[j] * J_prime_population[j]
+        sum_mu += J_population[j] * mu_population[j]
+        sum_q += J_population[j]^2 * q_population[j]
+        sum_Chi += J_population[j] * J_prime_population[j] * Chi_population[j]
     end
-    sum_mu *= mean(mu_population)
-    sum_q *= mean(q_population)
-    sum_Chi *= mean(Chi_population)
     Ε = sqrt(sum_q)
     Δ = (1+sum_mu)/Ε
 
