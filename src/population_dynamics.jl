@@ -67,6 +67,13 @@ function update_cav!(p_cav_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_p
         # Sample the degree k
         k_cav = sample_degree(rng, 0:length(p_cav_k)-1, p_cav_k)
 
+        if k_cav == 0
+            mu_cav_population[i] = 1.0
+            q_cav_population[i] = 1.0
+            Chi_cav_population[i] = 0.0
+            continue
+        end
+
         # Get k random neighbors
         neighbors_indices_cav = sample(rng, filter!(x->x≠i,collect(1:P)), k_cav; replace=false)
         
@@ -89,6 +96,14 @@ function update_full!(p_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_popu
     # Update each site in the population
     @inbounds for i in shuffle(rng, 1:P)
         k_full = sample_degree(rng, 0:length(p_k)-1, p_k)
+
+        if k_full == 0
+            mu_full_population[i] = 1.0
+            q_full_population[i] = 1.0
+            Chi_full_population[i] = 0.0
+            continue
+        end
+
         neighbors_indices_full = sample(rng, filter!(x->x≠i,collect(1:P)), k_full; replace=false)
 
         # FULL UPDATE
