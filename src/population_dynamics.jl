@@ -61,7 +61,7 @@ end
 ########################################################## Sparse graph ###########################################################################
 ####################################################################################################################################################
 
-function update_cav!(p_cav_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_population, Chi_cav_population, J_population, J_prime_population, zero_thresholds)
+function update_cav!(p_cav_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_population, Chi_cav_population, J_population, J_prime_population)
     # Update each site in the population
     @inbounds for i in shuffle(rng, 1:P)
         # Sample the degree k
@@ -85,7 +85,7 @@ function update_cav!(p_cav_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_p
     end
 end
 
-function update_full!(p_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_population, Chi_cav_population, J_population, J_prime_population, mu_full_population, q_full_population, Chi_full_population, zero_thresholds)
+function update_full!(p_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_population, Chi_cav_population, J_population, J_prime_population, mu_full_population, q_full_population, Chi_full_population)
     # Update each site in the population
     @inbounds for i in shuffle(rng, 1:P)
         k_full = sample_degree(rng, 0:length(p_k)-1, p_k)
@@ -116,7 +116,6 @@ function population_dynamics(
     σ²::Float64, 
     γ::Float64, 
     K::Int;
-    zero_thresholds=Dict("mu"=>1e-3, "q"=>1e-4, "Chi"=>1e-4),
     check_vars=Dict("avg_mu"=>0.0), 
     error_func=error_func, 
     check_conv=30, 
@@ -149,7 +148,7 @@ function population_dynamics(
     # Loop over iterations until convergence or max_iter is reached
     @showprogress for t in 1:max_iter
 
-        update_cav!(p_cav_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_population, Chi_cav_population, J_population, J_prime_population, zero_thresholds)
+        update_cav!(p_cav_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_population, Chi_cav_population, J_population, J_prime_population)
 
         converged = error_func(check_vars, mu_cav_population, q_cav_population, Chi_cav_population, tol, t, check_conv)
 
@@ -165,7 +164,7 @@ function population_dynamics(
                 break
             end
             if plothist
-                update_full!(p_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_population, Chi_cav_population, J_population, J_prime_population, mu_full_population, q_full_population, Chi_full_population, zero_thresholds)
+                update_full!(p_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_population, Chi_cav_population, J_population, J_prime_population, mu_full_population, q_full_population, Chi_full_population)
                 
                 if t==check_conv
                     axs[1].cla()
@@ -222,7 +221,7 @@ function population_dynamics(
         end
     end
 
-    update_full!(p_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_population, Chi_cav_population, J_population, J_prime_population, mu_full_population, q_full_population, Chi_full_population, zero_thresholds)
+    update_full!(p_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_population, Chi_cav_population, J_population, J_prime_population, mu_full_population, q_full_population, Chi_full_population)
 
     if !converged && verbose
         println("Reached max iterations without convergence.")
