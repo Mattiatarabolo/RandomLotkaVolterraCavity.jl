@@ -1,9 +1,9 @@
 # Shortname for functions used in cavity update
-function φ_func(x::Float64)
+function gauss(x::Float64)
     return exp(-x^2/2)/sqrt(2*pi)
 end
 
-function Φ_func(x::Float64)
+function mod_erf(x::Float64)
     return (1+erf(x/sqrt(2)))/2
 end
 
@@ -11,48 +11,49 @@ end
 function sumpop(
     mu_population::Vector{Float64}, 
     q_population::Vector{Float64}, 
-    Chi_population::Vector{Float64}, 
+    chi_population::Vector{Float64}, 
     J_population::Vector{Float64}, 
     J_prime_population::Vector{Float64}, 
     neighbors_indices::Vector{Int})
     
     sum_mu = 0.0
     sum_q = 0.0
-    sum_Chi = 0.0
+    sum_chi = 0.0
     @inbounds @fastmath @simd for j in neighbors_indices
         sum_mu += J_population[j] * mu_population[j]
         sum_q += J_population[j]^2 * q_population[j]
-        sum_Chi += J_population[j] * J_prime_population[j] * Chi_population[j]
+        sum_chi += J_population[j] * J_prime_population[j] * chi_population[j]
     end
-    Ε = sqrt(sum_q)
-    Δ = (1+sum_mu)/Ε
+    Epsilon = sqrt(sum_q)
+    Delta = (1+sum_mu)/Epsilon
 
-    testvalues(sum_mu, sum_q, sum_Chi, Ε, Δ)
-    return sum_q, sum_Chi, Ε, Δ
+    testvalues(sum_mu, sum_q, sum_chi, Epsilon, Delta)
+    return sum_q, sum_chi, Epsilon, Delta
 end
+   
 
 # Placeholder update functions, where you can optimize the internal logic of f_mu, f_q, f_chi
-function f_mu(sum_Chi::Float64, Ε::Float64, Δ::Float64)
-    if sum_Chi < 1.0
-        return Ε / (1 - sum_Chi) * (Δ * Φ_func(Δ) + φ_func(Δ))
+function f_mu(sum_chi::Float64, Epsilon::Float64, Delta::Float64)
+    if sum_chi < 1.0
+        return Epsilon / (1 - sum_chi) * (Delta * mod_erf(Delta) + gauss(Delta))
     else
-        return Ε / (1 - sum_Chi) * (Δ * Φ_func(-Δ) - φ_func(-Δ))
+        return Epsilon / (1 - sum_chi) * (Delta * mod_erf(-Delta) - gauss(-Delta))
     end
 end
 
-function f_q(sum_q::Float64, sum_Chi::Float64, Δ::Float64)
-    if sum_Chi < 1.0
-        return sum_q / (1 - sum_Chi)^2 * ((1+Δ^2) * Φ_func(Δ) + Δ * φ_func(Δ))
+function f_q(sum_q::Float64, sum_chi::Float64, Delta::Float64)
+    if sum_chi < 1.0
+        return sum_q / (1 - sum_chi)^2 * ((1+Delta^2) * mod_erf(Delta) + Delta * gauss(Delta))
     else
-        return sum_q / (1 - sum_Chi)^2 * ((1+Δ^2) * Φ_func(-Δ) - Δ * φ_func(-Δ))
+        return sum_q / (1 - sum_chi)^2 * ((1+Delta^2) * mod_erf(-Delta) - Delta * gauss(-Delta))
     end
 end
 
-function f_Chi(sum_Chi::Float64, Δ::Float64)
-    if sum_Chi < 1.0
-        return 1 / (1 - sum_Chi) * Φ_func(Δ)
+function f_chi(sum_chi::Float64, Delta::Float64)
+    if sum_chi < 1.0
+        return 1 / (1 - sum_chi) * mod_erf(Delta)
     else
-        return 1 / (1 - sum_Chi) * Φ_func(-Δ)
+        return 1 / (1 - sum_chi) * mod_erf(-Delta)
     end
 end
 
@@ -61,17 +62,16 @@ end
 ########################################################## Sparse graph ###########################################################################
 ####################################################################################################################################################
 
-function update_cav!(p_cav_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_population, Chi_cav_population, J_population, J_prime_population, indices)
+function update_cav!(p_cav_k, P, m, sigma2, gamma, K, rng, mu_cav_population, q_cav_population, chi_cav_population, J_population, J_prime_population, indices)
     # Update each site in the population
     @inbounds for i in shuffle(rng, 1:P)
         # Sample the degree k
         k_cav = sample_degree(rng, p_cav_k)
-        k_cav -= 1
 
         if k_cav == 0
             mu_cav_population[i] = 1.0
             q_cav_population[i] = 1.0
-            Chi_cav_population[i] = 0.0
+            chi_cav_population[i] = 0.0
             continue
         end
 
@@ -81,30 +81,29 @@ function update_cav!(p_cav_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_p
         # CAVITY UPDATE
         # Sample k_cav pairs of correlated J, J' values
         @inbounds for j in neighbors_indices_cav
-            J_population[j], J_prime_population[j] = sample_couplings(rng, m, σ², γ, K)
+            J_population[j], J_prime_population[j] = sample_couplings(rng, m, sigma2, gamma, K)
         end
 
         ## We could sample a bigger population of J at the beginning and sample from it ##
 
         # Compute the new values for mu, q, chi using the update functions
-        sum_q_cav, sum_Chi_cav, Ε_cav, Δ_cav = sumpop(mu_cav_population, q_cav_population, Chi_cav_population, J_population, J_prime_population, neighbors_indices_cav)
-        mu_cav_population[i] = f_mu(sum_Chi_cav, Ε_cav, Δ_cav)
-        q_cav_population[i] = f_q(sum_q_cav, sum_Chi_cav, Δ_cav)
-        Chi_cav_population[i] = f_Chi(sum_Chi_cav, Δ_cav)
-        testvalues(mu_cav_population[i], q_cav_population[i], Chi_cav_population[i], sum_q_cav, sum_Chi_cav, Δ_cav)
+        sum_q_cav, sum_chi_cav, Epsilon_cav, Delta_cav = sumpop(mu_cav_population, q_cav_population, chi_cav_population, J_population, J_prime_population, neighbors_indices_cav)
+        mu_cav_population[i] = f_mu(sum_chi_cav, Epsilon_cav, Delta_cav)
+        q_cav_population[i] = f_q(sum_q_cav, sum_chi_cav, Delta_cav)
+        chi_cav_population[i] = f_chi(sum_chi_cav, Delta_cav)
+        testvalues(mu_cav_population[i], q_cav_population[i], chi_cav_population[i], sum_q_cav, sum_chi_cav, Delta_cav)
     end
 end
 
-function update_full!(p_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_population, Chi_cav_population, J_population, J_prime_population, mu_full_population, q_full_population, Chi_full_population, indices)
+function update_full!(p_k, P, m, sigma2, gamma, K, rng, mu_cav_population, q_cav_population, chi_cav_population, J_population, J_prime_population, mu_full_population, q_full_population, chi_full_population, indices)
     # Update each site in the population
     @inbounds @fastmath for i in shuffle(rng, 1:P)
         k_full = sample_degree(rng, p_k)
-        k_full -= 1
 
         if k_full == 0
             mu_full_population[i] = 1.0
             q_full_population[i] = 1.0
-            Chi_full_population[i] = 0.0
+            chi_full_population[i] = 0.0
             continue
         end
 
@@ -113,14 +112,14 @@ function update_full!(p_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_popu
         # FULL UPDATE
         # Sample k_cav pairs of correlated J, J' values
         @inbounds @fastmath for j in neighbors_indices_full
-            J_population[j], J_prime_population[j] = sample_couplings(rng, m, σ², γ, K)
+            J_population[j], J_prime_population[j] = sample_couplings(rng, m, sigma2, gamma, K)
         end
         # Compute the new values for mu, q, chi using the update functions
-        sum_q_full, sum_Chi_full, Ε_full, Δ_full = sumpop(mu_cav_population, q_cav_population, Chi_cav_population, J_population, J_prime_population, neighbors_indices_full)
-        mu_full_population[i] = f_mu(sum_Chi_full, Ε_full, Δ_full)
-        q_full_population[i] = f_q(sum_q_full, sum_Chi_full, Δ_full)
-        Chi_full_population[i] = f_Chi(sum_Chi_full, Δ_full)
-        testvalues(mu_full_population[i], q_full_population[i], Chi_full_population[i], sum_q_full, sum_Chi_full, Δ_full) 
+        sum_q_full, sum_chi_full, Epsilon_full, Delta_full = sumpop(mu_cav_population, q_cav_population, chi_cav_population, J_population, J_prime_population, neighbors_indices_full)
+        mu_full_population[i] = f_mu(sum_chi_full, Epsilon_full, Delta_full)
+        q_full_population[i] = f_q(sum_q_full, sum_chi_full, Delta_full)
+        chi_full_population[i] = f_chi(sum_chi_full, Delta_full)
+        testvalues(mu_full_population[i], q_full_population[i], chi_full_population[i], sum_q_full, sum_chi_full, Delta_full) 
     end
 end
 
@@ -132,8 +131,8 @@ function population_dynamics(
     tol, 
     max_iter::Int, 
     m::Float64, 
-    σ²::Float64, 
-    γ::Float64, 
+    sigma2::Float64, 
+    gamma::Float64, 
     K::Int;
     check_vars=Dict("avg_mu"=>0.0), 
     error_func=error_func, 
@@ -145,10 +144,10 @@ function population_dynamics(
     # Initialize populations
     mu_cav_population = rand(rng, P)
     q_cav_population = rand(rng, P)
-    Chi_cav_population = rand(rng, P) .- 0.3
+    chi_cav_population = rand(rng, P) .- 0.3
     mu_full_population = zeros(P)
     q_full_population = zeros(P)
-    Chi_full_population = zeros(P)
+    chi_full_population = zeros(P)
     J_population = zeros(P)
     J_prime_population = zeros(P)
     indices = collect(1:P)
@@ -159,18 +158,18 @@ function population_dynamics(
 
     muxlim = (0, 1)
     qxlim = (0, 1)
-    Chixlim = (0, 1)
+    chixlim = (0, 1)
     muylim = (0, 1)
     qylim = (0, 1)
-    Chiylim = (0, 1)
+    chiylim = (0, 1)
 
     converged = false
     # Loop over iterations until convergence or max_iter is reached
     @showprogress for t in 1:max_iter
 
-        update_cav!(p_cav_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_population, Chi_cav_population, J_population, J_prime_population, indices)
+        update_cav!(p_cav_k, P, m, sigma2, gamma, K, rng, mu_cav_population, q_cav_population, chi_cav_population, J_population, J_prime_population, indices)
 
-        converged = error_func(check_vars, mu_cav_population, q_cav_population, Chi_cav_population, tol, t, check_conv)
+        converged = error_func(check_vars, mu_cav_population, q_cav_population, chi_cav_population, tol, t, check_conv)
 
         # Check for convergence
         if t % check_conv == 0  # Check every 10 iterations
@@ -184,7 +183,7 @@ function population_dynamics(
                 break
             end
             if plothist
-                update_full!(p_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_population, Chi_cav_population, J_population, J_prime_population, mu_full_population, q_full_population, Chi_full_population, indices)
+                update_full!(p_k, P, m, sigma2, gamma, K, rng, mu_cav_population, q_cav_population, chi_cav_population, J_population, J_prime_population, mu_full_population, q_full_population, chi_full_population, indices)
                 
                 if t==check_conv
                     axs[1].cla()
@@ -207,13 +206,13 @@ function population_dynamics(
                     axs[2].set_ylim(qylim)
 
                     axs[3].cla()
-                    fChi, _ = axs[3].hist(Chi_full_population, bins=30, alpha=0.5, density=true, color="C2")
-                    Chixlim = (minimum(Chi_full_population), maximum(Chi_full_population))
-                    Chiylim = (minimum(Chi_full_population), maximum(fChi)*1.1)
-                    axs[3].set_title("Histogram of Χ values")
-                    axs[3].set_xlabel("Χ")
-                    axs[3].set_xlim(Chixlim)
-                    axs[3].set_ylim(Chiylim)
+                    fchi, _ = axs[3].hist(chi_full_population, bins=30, alpha=0.5, density=true, color="C2")
+                    chixlim = (minimum(chi_full_population), maximum(chi_full_population))
+                    chiylim = (minimum(chi_full_population), maximum(fchi)*1.1)
+                    axs[3].set_title("Histogram of χ values")
+                    axs[3].set_xlabel("χ")
+                    axs[3].set_xlim(chixlim)
+                    axs[3].set_ylim(chiylim)
                 else 
                     axs[1].cla()
                     axs[1].hist(mu_full_population, bins=30, alpha=0.5, density=true, color="C0")
@@ -231,23 +230,23 @@ function population_dynamics(
                     axs[2].set_ylim(qylim)
 
                     axs[3].cla()
-                    axs[3].hist(Chi_full_population, bins=30, alpha=0.5, density=true, color="C2")
-                    axs[3].set_title("Histogram of Χ values")
-                    axs[3].set_xlabel("Χ")
-                    axs[3].set_xlim(Chixlim)
-                    axs[3].set_ylim(Chiylim)
+                    axs[3].hist(chi_full_population, bins=30, alpha=0.5, density=true, color="C2")
+                    axs[3].set_title("Histogram of χ values")
+                    axs[3].set_xlabel("χ")
+                    axs[3].set_xlim(chixlim)
+                    axs[3].set_ylim(chiylim)
                 end
             end
         end
     end
 
-    update_full!(p_k, P, m, σ², γ, K, rng, mu_cav_population, q_cav_population, Chi_cav_population, J_population, J_prime_population, mu_full_population, q_full_population, Chi_full_population, indices)
+    update_full!(p_k, P, m, sigma2, gamma, K, rng, mu_cav_population, q_cav_population, chi_cav_population, J_population, J_prime_population, mu_full_population, q_full_population, chi_full_population, indices)
 
     if !converged && verbose
         println("Reached max iterations without convergence.")
     end
 
-    return mu_full_population, q_full_population, Chi_full_population, mu_cav_population, q_cav_population, Chi_cav_population, converged
+    return mu_full_population, q_full_population, chi_full_population, mu_cav_population, q_cav_population, chi_cav_population, converged
 end
 
 
@@ -261,7 +260,7 @@ end
 function sumpop_FC(
     mu_population::Vector{Float64}, 
     q_population::Vector{Float64}, 
-    Chi_population::Vector{Float64}, 
+    chi_population::Vector{Float64}, 
     J_population::Vector{Float64}, 
     J_prime_population::Vector{Float64}, 
     i::Int, 
@@ -269,20 +268,20 @@ function sumpop_FC(
 
     sum_mu = 0.0
     sum_q = 0.0
-    sum_Chi = 0.0
+    sum_chi = 0.0
     @inbounds @fastmath for j in 1:P
         if j == i
             continue
         end
         sum_mu += J_population[j] * mu_population[j]
         sum_q += J_population[j]^2 * q_population[j]
-        sum_Chi += J_population[j] * J_prime_population[j] * Chi_population[j]
+        sum_chi += J_population[j] * J_prime_population[j] * chi_population[j]
     end
-    Ε = sqrt(sum_q)
-    Δ = (1+sum_mu)/Ε
+    Epsilon = sqrt(sum_q)
+    Delta = (1+sum_mu)/Epsilon
 
-    testvalues(sum_mu, sum_q, sum_Chi, Ε, Δ)
-    return sum_q, sum_Chi, Ε, Δ
+    testvalues(sum_mu, sum_q, sum_chi, Epsilon, Delta)
+    return sum_q, sum_chi, Epsilon, Delta
 end
 
 # Function to run population dynamics with all the performance tips included
@@ -291,8 +290,8 @@ function population_dynamics_FC(
     tol, 
     max_iter::Int, 
     m::Float64, 
-    σ²::Float64, 
-    γ::Float64; 
+    sigma2::Float64, 
+    gamma::Float64; 
     check_vars=Dict("avg_mu"=>0.0), 
     error_func=error_func, 
     check_conv=30, 
@@ -302,7 +301,7 @@ function population_dynamics_FC(
     # Initialize populations
     mu_population = rand(rng, P)
     q_population = rand(rng, P)
-    Chi_population = rand(rng, P)
+    chi_population = rand(rng, P)
     J_population = zeros(P)
     J_prime_population = zeros(P)
 
@@ -316,17 +315,17 @@ function population_dynamics_FC(
                 if j == i
                     continue
                 end
-                J_population[j], J_prime_population[j] = sample_couplings(rng, m, σ², γ, P)
+                J_population[j], J_prime_population[j] = sample_couplings(rng, m, sigma2, gamma, P)
             end
             # Compute the new values for mu, q, chi using the update functions
-            sum_q, sum_Chi, Ε, Δ = sumpop_FC(mu_population, q_population, Chi_population, J_population, J_prime_population, i, P)
-            mu_population[i] = f_mu(sum_Chi, Ε, Δ)
-            q_population[i] = f_q(sum_q, sum_Chi, Δ)
-            Chi_population[i] = f_Chi(sum_Chi, Δ)
-            testvalues(mu_population[i], q_population[i], Chi_population[i], sum_q, sum_Chi, Δ)  
+            sum_q, sum_chi, Epsilon, Delta = sumpop_FC(mu_population, q_population, chi_population, J_population, J_prime_population, i, P)
+            mu_population[i] = f_mu(sum_chi, Epsilon, Delta)
+            q_population[i] = f_q(sum_q, sum_chi, Delta)
+            chi_population[i] = f_chi(sum_chi, Delta)
+            testvalues(mu_population[i], q_population[i], chi_population[i], sum_q, sum_chi, Delta)  
         end
 
-        converged = error_func(check_vars, mu_population, q_population, Chi_population, tol, t, check_conv)
+        converged = error_func(check_vars, mu_population, q_population, chi_population, tol, t, check_conv)
 
         # Check for convergence
         if t % check_conv == 0  # Check every 10 iterations
@@ -346,5 +345,5 @@ function population_dynamics_FC(
         println("Reached max iterations without convergence.")
     end
 
-    return mu_population, q_population, Chi_population, converged
+    return mu_population, q_population, chi_population, converged
 end

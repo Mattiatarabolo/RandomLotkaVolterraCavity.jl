@@ -1,38 +1,38 @@
 # Function to sample correlated Gaussian random variables J and J'
-function sample_couplings(rng, m::Float64, σ²::Float64, γ::Float64, K::Int)
+function sample_couplings(rng, m::Float64, sigma2::Float64, gamma::Float64, K::Int)
     u, v = randn(rng, 2)
-    J = m/K + sqrt(σ²/K)*u
-    J_prime = m/K + sqrt(σ²/K)*(γ*u + sqrt(1-γ^2)*v)
+    J = m/K + sqrt(sigma2/K)*u
+    J_prime = m/K + sqrt(sigma2/K)*(gamma*u + sqrt(1-gamma^2)*v)
     return J, J_prime
 end
 
 function sample_degree(rng::AbstractRNG, p_k::Vector{Float64})
     w = Weights(p_k)
-    return sample(rng, w)
+    return sample(rng, w) - 1
 end
 
-function testvalues(sum_μ, sum_q, sum_χ, Ε, Δ)
-    if sum_q < 0 || sum_χ == 1|| !isfinite(sum_μ) || !isfinite(sum_q) || !isfinite(sum_χ) || !isfinite(Ε) || !isfinite(Δ)
-        println("sum_μ=$(sum_μ), sum_q=$(sum_q), sum_χ=$(sum_χ), Ε=$(Ε), Δ=$(Δ)")
+function testvalues(sum_mu, sum_q, sum_chi, Epsilon, Delta)
+    if sum_q < 0 || sum_chi == 1|| !isfinite(sum_mu) || !isfinite(sum_q) || !isfinite(sum_chi) || !isfinite(Epsilon) || !isfinite(Delta)
+        println("sum_mu=$(sum_mu), sum_q=$(sum_q), sum_chi=$(sum_chi), Epsilon=$(Epsilon), Delta=$(Delta)")
         throw(ArgumentError("Invalid values"))
     end
 end
 
-function testvalues(μ, q, χ, sum_q, sum_χ, Δ)
-    if μ < 0 || q < 0 || !isfinite(μ) || !isfinite(q) || !isfinite(χ)
-        println("μ=$(μ), q=$(q), χ=$(χ), sum_q=$(sum_q), sum_χ=$(sum_χ), Δ=$(Δ)")
+function testvalues(mu, q, chi, sum_q, sum_chi, Delta)
+    if mu < 0 || q < 0 || !isfinite(mu) || !isfinite(q) || !isfinite(chi)
+        println("mu=$(mu), q=$(q), chi=$(chi), sum_q=$(sum_q), sum_chi=$(sum_chi), Delta=$(Delta)")
         throw(ArgumentError("Invalid values"))
     end
 end
 
 
-function error_func(check_vars, μ_population, q_population, χ_population)
+function error_func(check_vars, mu_population, q_population, chi_population)
     # Calculate new averages for convergence checking
-    new_avg_μ = mean(μ_population)
+    new_avg_mu = mean(mu_population)
 
     # Calculate the maximum change in the updates for convergence checking
-    max_diff = abs(check_vars["avg_μ"] - new_avg_μ)
-    check_vars["avg_μ"] = new_avg_μ
+    max_diff = abs(check_vars["avg_mu"] - new_avg_mu)
+    check_vars["avg_mu"] = new_avg_mu
 
     return max_diff
 end
@@ -113,3 +113,57 @@ function sample_glv(
     return t_vals, trajectories, sol
 end
 
+
+function sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::Vector{Float64}, mu_pop::Vector{Float64}, q_pop::Vector{Float64}, chi_pop::Vector{Float64}, nsim::Int, indices::UnitRange{Int64}, P::Int, rng::AbstractRNG)
+    xvec = zeros(nsim * P)
+    @inbounds @fastmath for i in 1:P
+        @inbounds @fastmath for isim in 1:nsim
+            k = sample(rng, 0:length(p_k)-1, Weights(p_k))
+            if k == 0
+                xvec[(i-1)*nsim+isim] = 1.0
+                continue
+            end
+            neighbors_indices = sample(rng, indices, k; replace=false)
+            sum_mu = 0.0
+            sum_q = 0.0
+            sum_chi = 0.0
+            @inbounds @fastmath for j in neighbors_indices
+                J, Jprime = sample_couplings(rng, m, sigma2, gamma, K)
+                sum_mu += J * mu_pop[j]
+                sum_q += J^2 * q_pop[j]
+                sum_chi += J * Jprime * chi_pop[j]
+            end
+            xvec[(i-1)*nsim+isim] = max((1+sum_mu+sqrt(sum_q)*rand(rng))/(1-sum_chi), 0.0)
+        end
+    end
+    return xvec
+end
+
+
+function sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::Vector{Float64}, mu_avg::Float64, q_avg::Float64, chi_avg::Float64, nsim::Int, indices::UnitRange{Int64}, P::Int, rng::AbstractRNG)
+    xvec = zeros(nsim * P)
+    @inbounds @fastmath for i in 1:P
+        @inbounds @fastmath for isim in 1:nsim
+            k = sample(rng, 0:length(p_k)-1, Weights(p_k))
+            if k == 0
+                xvec[(i-1)*nsim+isim] = 1.0
+                continue
+            end
+            neighbors_indices = sample(rng, indices, k; replace=false)
+            sum_mu = 0.0
+            sum_q = 0.0
+            sum_chi = 0.0
+            @inbounds @fastmath for j in neighbors_indices
+                J, Jprime = sample_couplings(rng, m, sigma2, gamma, K)
+                sum_mu += J
+                sum_q += J^2
+                sum_chi += J * Jprime
+            end
+            sum_mu *= mu_avg
+            sum_q *= q_avg
+            sum_chi *= chi_avg
+            xvec[(i-1)*nsim+isim] = max((1+sum_mu+sqrt(sum_q)*rand(rng))/(1-sum_chi), 0.0)
+        end
+    end
+    return xvec
+end
