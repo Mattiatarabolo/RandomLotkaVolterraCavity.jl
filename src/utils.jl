@@ -124,8 +124,9 @@ function sample_glv(
 end
 
 
-function sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::Vector{Float64}, mu_pop::Vector{Float64}, q_pop::Vector{Float64}, chi_pop::Vector{Float64}, nsim::Int, indices::UnitRange{Int64}, P::Int, rng::AbstractRNG)
+function sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::Vector{Float64}, mu_pop::Vector{Float64}, q_pop::Vector{Float64}, chi_pop::Vector{Float64}, nsim::Int, neigh_idxs::Vector{Int8}, P::Int, rng::AbstractRNG)
     xvec = zeros(nsim * P)
+    neigh_idxs = zeros(Int8, length(p_k))
     @inbounds @fastmath for i in 1:P
         @inbounds @fastmath for isim in 1:nsim
             k = sample(rng, 0:length(p_k)-1, Weights(p_k))
@@ -133,24 +134,25 @@ function sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::Vect
                 xvec[(i-1)*nsim+isim] = 1.0
                 continue
             end
-            neighbors_indices = sample(rng, indices, k; replace=false)
+            sample_neighs!(rng, neigh_idxs, i, k, P)
             sum_mu = 0.0
             sum_q = 0.0
             sum_chi = 0.0
-            @inbounds @fastmath for j in neighbors_indices
+            @inbounds @fastmath for neigh_idx in 1:k
+                j = neigh_idxs[neigh_idx]
                 J, Jprime = sample_couplings(rng, m, sigma2, gamma, K)
                 sum_mu += J * mu_pop[j]
                 sum_q += J^2 * q_pop[j]
                 sum_chi += J * Jprime * chi_pop[j]
             end
-            xvec[(i-1)*nsim+isim] = max((1+sum_mu+sqrt(sum_q)*rand(rng))/(1-sum_chi), 0.0)
+            xvec[(i-1)*nsim+isim] = max((1+sum_mu+sqrt(sum_q)*randn(rng))/(1-sum_chi), 0.0)
         end
     end
     return xvec
 end
 
 
-function sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::Vector{Float64}, mu_avg::Float64, q_avg::Float64, chi_avg::Float64, nsim::Int, indices::UnitRange{Int64}, P::Int, rng::AbstractRNG)
+function sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::Vector{Float64}, mu_avg::Float64, q_avg::Float64, chi_avg::Float64, nsim::Int, P::Int, rng::AbstractRNG)
     xvec = zeros(nsim * P)
     @inbounds @fastmath for i in 1:P
         @inbounds @fastmath for isim in 1:nsim
@@ -159,11 +161,10 @@ function sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::Vect
                 xvec[(i-1)*nsim+isim] = 1.0
                 continue
             end
-            neighbors_indices = sample(rng, indices, k; replace=false)
             sum_mu = 0.0
             sum_q = 0.0
             sum_chi = 0.0
-            @inbounds @fastmath for j in neighbors_indices
+            @inbounds @fastmath for _ in 1:k
                 J, Jprime = sample_couplings(rng, m, sigma2, gamma, K)
                 sum_mu += J
                 sum_q += J^2
@@ -172,7 +173,7 @@ function sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::Vect
             sum_mu *= mu_avg
             sum_q *= q_avg
             sum_chi *= chi_avg
-            xvec[(i-1)*nsim+isim] = max((1+sum_mu+sqrt(sum_q)*rand(rng))/(1-sum_chi), 0.0)
+            xvec[(i-1)*nsim+isim] = max((1+sum_mu+sqrt(sum_q)*randn(rng))/(1-sum_chi), 0.0)
         end
     end
     return xvec

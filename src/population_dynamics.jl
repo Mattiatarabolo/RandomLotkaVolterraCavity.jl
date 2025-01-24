@@ -70,7 +70,7 @@ function update_cav!(p_cav_k::Vector{Float64}, P::Int, m::Float64, sigma2::Float
         end
 
         # Get k random neighbors
-        sample_neighs!(rng, neigh_idxs, i, k_cav)
+        sample_neighs!(rng, neigh_idxs, i, k_cav, P)
         
         # CAVITY UPDATE
         # Sample k_cav pairs of correlated J, J' values
@@ -101,7 +101,7 @@ function update_full!(p_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, c
             continue
         end
 
-        sample_neighs!(rng, neigh_idxs, i, k_full)
+        sample_neighs!(rng, neigh_idxs, i, k_full, P)
 
         # FULL UPDATE
         # Sample k_cav pairs of correlated J, J' values
