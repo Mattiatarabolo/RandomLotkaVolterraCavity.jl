@@ -11,6 +11,16 @@ function sample_degree(rng::AbstractRNG, p_k::Vector{Float64})
     return sample(rng, w) - 1
 end
 
+function sample_neighs!(rng, neigh_idxs, i, k, P)
+    for j in 1:k
+        check = true
+        while check
+            neigh_idxs[i] = rand(rng, 1:P)
+            check = (neigh_idxs[j]==i)
+        end
+    end
+end
+
 function testvalues(sum_mu, sum_q, sum_chi, Epsilon, Delta)
     if sum_q < 0 || sum_chi == 1|| !isfinite(sum_mu) || !isfinite(sum_q) || !isfinite(sum_chi) || !isfinite(Epsilon) || !isfinite(Delta)
         println("sum_mu=$(sum_mu), sum_q=$(sum_q), sum_chi=$(sum_chi), Epsilon=$(Epsilon), Delta=$(Delta)")
