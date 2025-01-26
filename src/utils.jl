@@ -126,7 +126,7 @@ end
 
 function sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::Vector{Float64}, mu_pop::Vector{Float64}, q_pop::Vector{Float64}, chi_pop::Vector{Float64}, nsim::Int, P::Int, rng::AbstractRNG)
     xvec = zeros(nsim * P)
-    neigh_idxs = zeros(Int8, length(p_k))
+    neigh_idxs = zeros(Int, length(p_k))
     @inbounds @fastmath for i in 1:P
         @inbounds @fastmath for isim in 1:nsim
             k = sample(rng, 0:length(p_k)-1, Weights(p_k))

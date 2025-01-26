@@ -56,7 +56,7 @@ end
 ########################################################## Sparse graph ###########################################################################
 ####################################################################################################################################################
 
-function update_cav!(p_cav_k::Vector{Float64}, P::Int, m::Float64, sigma2::Float64, gamma::Float64, K::Int, rng::AbstractRNG, mu_cav_pop::Vector{Float64}, q_cav_pop::Vector{Float64}, chi_cav_pop::Vector{Float64}, J_pop::Vector{Float64}, Jp_pop::Vector{Float64}, neigh_idxs::Vector{Int8})
+function update_cav!(p_cav_k::Vector{Float64}, P::Int, m::Float64, sigma2::Float64, gamma::Float64, K::Int, rng::AbstractRNG, mu_cav_pop::Vector{Float64}, q_cav_pop::Vector{Float64}, chi_cav_pop::Vector{Float64}, J_pop::Vector{Float64}, Jp_pop::Vector{Float64}, neigh_idxs::Vector{Int})
     # Update each site in the population
     @inbounds for i in shuffle(rng, 1:P)
         # Sample the degree k
@@ -144,7 +144,7 @@ function population_dynamics(
     chi_pop = zeros(P)
     J_pop = zeros(P)
     Jp_pop = zeros(P)
-    neigh_idxs = zeros(Int8, length(p_k))
+    neigh_idxs = zeros(Int, length(p_k))
 
     if plothist
         _, axs = plt.subplots(1,3,figsize=(10, 4))
