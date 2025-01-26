@@ -135,6 +135,8 @@ function population_dynamics(
     verbose=false,
     plothist=false)
 
+    @assert length(p_k) == length(p_cav_k)+1
+
     # Initialize populations
     mu_cav_pop = rand(rng, P)
     q_cav_pop = rand(rng, P)

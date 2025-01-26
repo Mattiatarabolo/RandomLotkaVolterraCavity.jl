@@ -15,7 +15,7 @@ function sample_neighs!(rng, neigh_idxs, i, k, P)
     for j in 1:k
         check = true
         while check
-            neigh_idxs[i] = rand(rng, 1:P)
+            neigh_idxs[j] = rand(rng, 1:P)
             check = (neigh_idxs[j]==i)
         end
     end
