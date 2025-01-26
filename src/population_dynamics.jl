@@ -161,7 +161,7 @@ function population_dynamics(
     # Loop over iterations until convergence or max_iter is reached
     @showprogress for t in 1:max_iter
 
-        update_cav!(p_cav_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, indices)
+        update_cav!(p_cav_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, neigh_idxs)
 
         converged = error_func(check_vars, mu_cav_pop, q_cav_pop, chi_cav_pop, tol, t, check_conv)
 
