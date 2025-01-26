@@ -124,7 +124,7 @@ function sample_glv(
 end
 
 
-function sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::Vector{Float64}, mu_pop::Vector{Float64}, q_pop::Vector{Float64}, chi_pop::Vector{Float64}, nsim::Int, neigh_idxs::Vector{Int8}, P::Int, rng::AbstractRNG)
+function sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::Vector{Float64}, mu_pop::Vector{Float64}, q_pop::Vector{Float64}, chi_pop::Vector{Float64}, nsim::Int, P::Int, rng::AbstractRNG)
     xvec = zeros(nsim * P)
     neigh_idxs = zeros(Int8, length(p_k))
     @inbounds @fastmath for i in 1:P
