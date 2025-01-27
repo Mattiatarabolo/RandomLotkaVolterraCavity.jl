@@ -103,7 +103,7 @@ function glv_threshold!(du, u, p, t)
 end
 
 """
-    sample_glv_threshold(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64}, zero_threshold::Float64)
+    sample_glv(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64}, zero_threshold::Float64)
 
 Simulates the Generalized Lotka-Volterra system. It sets to zero the abundances that are below a certain threshold.
 
@@ -118,7 +118,7 @@ Returns:
 - t_vals: Time points where trajectories are saved.
 - trajectories: Matrix of size (N x length(t_vals)) storing species abundances.
 """
-function sample_glv_threshold(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64}, zero_threshold::Float64)
+function sample_glv(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64}, zero_threshold::Float64)
             
     # Ensure the initial condition has the correct size
     @assert size(J, 1) == size(J, 2) "Interaction matrix J must be square."
