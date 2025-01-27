@@ -60,7 +60,7 @@ end
 """
     sample_glv(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64})
 
-Simulates the Generalized Lotka-Volterra system.
+Simulates the Generalized Lotka-Volterra system on sparse networks.
 
 Arguments:
 - J: Sparse interaction matrix (NxN), where J[i,j] is the interaction strength from species j to species i.
@@ -73,6 +73,43 @@ Returns:
 - trajectories: Matrix of size (N x length(t_vals)) storing species abundances.
 """
 function sample_glv(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64})
+            
+    # Ensure the initial condition has the correct size
+    @assert size(J, 1) == size(J, 2) "Interaction matrix J must be square."
+    N = size(J, 1)
+    @assert length(x0) == N "Initial condition x0 must have size N."
+
+    # Problem setup
+    tspan = (0.0, tmax)
+    p = J
+    prob = ODEProblem(glv!, x0, tspan, p)
+
+    # Solver options
+    sol = solve(prob, Tsit5(), reltol=1e-8, abstol=1e-8, saveat=tsave)
+
+    # Extract the time points and trajectories
+    t_vals = sol.t
+    trajectories = hcat(sol.u...) # Convert solution vectors to a matrix
+
+    return t_vals, trajectories, sol
+end
+
+"""
+    sample_glv(J::Matrix{Float64}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64})
+
+Simulates the Generalized Lotka-Volterra system on fully connected networks.
+
+Arguments:
+- J: Fully connected nteraction matrix (NxN), where J[i,j] is the interaction strength from species j to species i.
+- x0: Initial abundances (Vector of size N).
+- tmax: End time for the simulation.
+- tsave: Vector of times for saving trajectories.
+
+Returns:
+- t_vals: Time points where trajectories are saved.
+- trajectories: Matrix of size (N x length(t_vals)) storing species abundances.
+"""
+function sample_glv(J::Matrix{Float64}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64})
             
     # Ensure the initial condition has the correct size
     @assert size(J, 1) == size(J, 2) "Interaction matrix J must be square."
