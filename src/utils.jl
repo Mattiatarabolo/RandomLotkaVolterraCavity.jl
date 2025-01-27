@@ -96,7 +96,7 @@ end
 
 # Define the Random-Lotka-Volterra system of equations
 function glv_threshold!(du, u, p, t)
-    p = (J, zero_threshold)
+    J, zero_threshold = p
     mul!(du, J, u)
     du .= u .* (1 .- u .+ du)
     du[du .< zero_threshold] .= 0.0
