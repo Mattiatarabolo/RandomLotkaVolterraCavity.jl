@@ -57,46 +57,22 @@ function glv!(du, u, p, t)  # p = (J, zero_threshold)
     du .= u .* (1 .- u .+ du)
 end
 
-function jac_glv!(Jac, u, p, t)
-    J = p
-    # Fill the diagonal
-    @inbounds @fastmath @simd for i in 1:length(u)
-        Jac[i, i] = 1 - 2 * u[i]
-    end
-    # Fill the off-diagonal elements
-    @inbounds @fastmath for j in 1:length(u)
-        @inbounds @fastmath for k in nzrange(J, j)
-            Jac[J.rowval[k], j] = J.nzval[k] * u[j]
-        end
-    end
-end
-
 """
-    sample_glv(
-        J::SparseMatrixCSC{Float64, Int}, 
-        x0::Vector{Float64}, 
-        tmax::Float64, 
-        tsave::Vector{Float64}, 
-        zero_threshold::Float64)
+    sample_glv(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64})
 
 Simulates the Generalized Lotka-Volterra system.
 
 Arguments:
-- J: Transposed sparse interaction matrix (NxN), where J[j, i] is the interaction strength from species i to species j.
+- J: Sparse interaction matrix (NxN), where J[i,j] is the interaction strength from species j to species i.
 - x0: Initial abundances (Vector of size N).
 - tmax: End time for the simulation.
 - tsave: Vector of times for saving trajectories.
-- zero_threshold: Threshold below which abundances are set to zero.
 
 Returns:
 - t_vals: Time points where trajectories are saved.
 - trajectories: Matrix of size (N x length(t_vals)) storing species abundances.
 """
-function sample_glv(
-            J::SparseMatrixCSC{Float64, Int}, 
-            x0::Vector{Float64}, 
-            tmax::Float64, 
-            tsave::Vector{Float64})
+function sample_glv(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64})
             
     # Ensure the initial condition has the correct size
     @assert size(J, 1) == size(J, 2) "Interaction matrix J must be square."
@@ -106,12 +82,53 @@ function sample_glv(
     # Problem setup
     tspan = (0.0, tmax)
     p = J
-    Jac = deepcopy(J)
-    @inbounds @fastmath @simd for i in 1:N
-        Jac[i, i] = 1.0
-    end
-    f! = ODEFunction(glv!, jac=jac_glv!, jac_prototype=Jac)
-    prob = ODEProblem(f!, x0, tspan, p)
+    prob = ODEProblem(glv!, x0, tspan, p)
+
+    # Solver options
+    sol = solve(prob, Tsit5(), reltol=1e-8, abstol=1e-8, saveat=tsave)
+
+    # Extract the time points and trajectories
+    t_vals = sol.t
+    trajectories = hcat(sol.u...) # Convert solution vectors to a matrix
+
+    return t_vals, trajectories, sol
+end
+
+# Define the Random-Lotka-Volterra system of equations
+function glv_threshold!(du, u, p, t)
+    p = (J, zero_threshold)
+    mul!(du, J, u)
+    du .= u .* (1 .- u .+ du)
+    du[du .< zero_threshold] .= 0.0
+end
+
+"""
+    sample_glv_threshold(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64}, zero_threshold::Float64)
+
+Simulates the Generalized Lotka-Volterra system. It sets to zero the abundances that are below a certain threshold.
+
+Arguments:
+- J: Sparse interaction matrix (NxN), where J[i,j] is the interaction strength from species j to species i.
+- x0: Initial abundances (Vector of size N).
+- tmax: End time for the simulation.
+- tsave: Vector of times for saving trajectories.
+- zero_threshold: Threshold below which abundances are set to zero.
+
+Returns:
+- t_vals: Time points where trajectories are saved.
+- trajectories: Matrix of size (N x length(t_vals)) storing species abundances.
+"""
+function sample_glv_threshold(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64}, zero_threshold::Float64)
+            
+    # Ensure the initial condition has the correct size
+    @assert size(J, 1) == size(J, 2) "Interaction matrix J must be square."
+    N = size(J, 1)
+    @assert length(x0) == N "Initial condition x0 must have size N."
+
+    # Problem setup
+    tspan = (0.0, tmax)
+    p = (J, zero_threshold)
+    prob = ODEProblem(glv_threshold!, x0, tspan, p)
 
     # Solver options
     sol = solve(prob, Tsit5(), reltol=1e-8, abstol=1e-8, saveat=tsave)
@@ -124,12 +141,34 @@ function sample_glv(
 end
 
 
-function sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::Vector{Float64}, mu_pop::Vector{Float64}, q_pop::Vector{Float64}, chi_pop::Vector{Float64}, nsim::Int, P::Int, rng::AbstractRNG)
+"""
+    sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::Vector{Float64}, mu_pop::Vector{Float64}, q_pop::Vector{Float64}, chi_pop::Vector{Float64}, nsim::Int, P::Int, rng::AbstractRNG,zero_threshold::Float64)
+
+Samples nsim fixed-point abundances of a random Generalized Lotka-Volterra system with correlated gaussian random interactions and degree distribution p_k. It uses the populations of the mean abundances, mean squared abundances and susceptibilities obtained from the population dynamics algorithm.
+
+Arguments:
+- m: Mean of the Gaussian distribution of the interactions.
+- sigma2: Variance of the Gaussian distribution of the interactions.
+- gamma: Correlation between the two interaction parameters Jᵢⱼ and Jⱼᵢ.
+- K: Number of neighbors.
+- p_k: Degree distribution. Vector of size kmax+1 with the probability of having k = 0,...,kmax neighbors.
+- mu_pop: Vector of size P with the population of the mean abundances. It is obtained from the population dynamics algorithm.
+- q_pop: Vector of size P with the population of the mean squared abundances. It is obtained from the population dynamics algorithm.
+- chi_pop: Vector of size P with the population of the susceptibilities. It is obtained from the population dynamics algorithm.
+- nsim: Number of simulations per element of the population.
+- P: Size of the population in the population dynamics algorithm.
+- rng: Random number generator.
+- zero_threshold: Threshold below which abundances are set to zero.
+
+Returns:
+- xvec: Vector of size nsim*P with the fixed-point abundances.
+"""
+function sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::Vector{Float64}, mu_pop::Vector{Float64}, q_pop::Vector{Float64}, chi_pop::Vector{Float64}, nsim::Int, P::Int, rng::AbstractRNG, zero_threshold::Float64)
     xvec = zeros(nsim * P)
     neigh_idxs = zeros(Int, length(p_k))
     @inbounds @fastmath for i in 1:P
         @inbounds @fastmath for isim in 1:nsim
-            k = sample(rng, 0:length(p_k)-1, Weights(p_k))
+            k = sample_degree(rng, p_k)
             if k == 0
                 xvec[(i-1)*nsim+isim] = 1.0
                 continue
@@ -145,18 +184,39 @@ function sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::Vect
                 sum_q += J^2 * q_pop[j]
                 sum_chi += J * Jprime * chi_pop[j]
             end
-            xvec[(i-1)*nsim+isim] = max((1+sum_mu+sqrt(sum_q)*randn(rng))/(1-sum_chi), 0.0)
+            xvec[(i-1)*nsim+isim] = max((1+sum_mu+sqrt(sum_q)*randn(rng))/(1-sum_chi), zero_threshold)
         end
     end
     return xvec
 end
 
+"""
+    sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::Vector{Float64}, mu_avg::Float64, q_avg::Float64, chi_avg::Float64, nsim::Int, P::Int, rng::AbstractRNG, zero_threshold::Float64)
 
-function sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::Vector{Float64}, mu_avg::Float64, q_avg::Float64, chi_avg::Float64, nsim::Int, P::Int, rng::AbstractRNG)
+Samples nsim fixed-point abundances of a random Generalized Lotka-Volterra system with correlated gaussian random interactions and degree distribution p_k. It uses the averages of the populations of the mean abundances, mean squared abundances and susceptibilities obtained from the population dynamics algorithm.
+
+Arguments:
+- m: Mean of the Gaussian distribution of the interactions.
+- sigma2: Variance of the Gaussian distribution of the interactions.
+- gamma: Correlation between the two interaction parameters Jᵢⱼ and Jⱼᵢ.
+- K: Number of neighbors.
+- p_k: Degree distribution. Vector of size kmax+1 with the probability of having k = 0,...,kmax neighbors.
+- mu_avg: Average of the population of the mean abundances. It is obtained from the population dynamics algorithm.
+- q_pop: Average of the population of the mean squared abundances. It is obtained from the population dynamics algorithm.
+- chi_pop: Average of the population of the susceptibilities. It is obtained from the population dynamics algorithm.
+- nsim: Number of simulations per element of the population.
+- P: Size of the population in the population dynamics algorithm.
+- rng: Random number generator.
+- zero_threshold: Threshold below which abundances are set to zero.
+
+Returns:
+- xvec: Vector of size nsim*P with the fixed-point abundances.
+"""
+function sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::Vector{Float64}, mu_avg::Float64, q_avg::Float64, chi_avg::Float64, nsim::Int, P::Int, rng::AbstractRNG, zero_threshold::Float64)
     xvec = zeros(nsim * P)
     @inbounds @fastmath for i in 1:P
         @inbounds @fastmath for isim in 1:nsim
-            k = sample(rng, 0:length(p_k)-1, Weights(p_k))
+            k = sample_degree(rng, p_k)
             if k == 0
                 xvec[(i-1)*nsim+isim] = 1.0
                 continue
@@ -173,7 +233,7 @@ function sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::Vect
             sum_mu *= mu_avg
             sum_q *= q_avg
             sum_chi *= chi_avg
-            xvec[(i-1)*nsim+isim] = max((1+sum_mu+sqrt(sum_q)*randn(rng))/(1-sum_chi), 0.0)
+            xvec[(i-1)*nsim+isim] = max((1+sum_mu+sqrt(sum_q)*randn(rng))/(1-sum_chi), zero_threshold)
         end
     end
     return xvec
