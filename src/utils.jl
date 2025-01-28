@@ -53,7 +53,8 @@ end
 # Define the Random-Lotka-Volterra system of equations
 function glv!(du, u, p, t)  # p = (J, zero_threshold)
     J = p
-    du .= u .* (1 .- u .+ J * u)
+    mul!(du, J, u)
+    du .= u .* (1 .- u .+ du)
 end
 
 """
@@ -130,13 +131,6 @@ function sample_glv(J::Matrix{Float64}, x0::Vector{Float64}, tmax::Float64, tsav
     return t_vals, trajectories, sol
 end
 
-# Define the Random-Lotka-Volterra system of equations
-function glv_threshold!(du, u, p, t)
-    J, zero_threshold = p
-    mul!(du, J, u)
-    du .= u .* (1 .- u .+ du)
-    du[du .< zero_threshold] .= 0.0
-end
 
 """
     sample_glv(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64}, zero_threshold::Float64)
@@ -163,8 +157,8 @@ function sample_glv(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax:
 
     # Problem setup
     tspan = (0.0, tmax)
-    p = (J, zero_threshold)
-    prob = ODEProblem(glv_threshold!, x0, tspan, p)
+    p = J
+    prob = ODEProblem(glv!, x0, tspan, p)
 
     # Solver options
     sol = solve(prob, Tsit5(), reltol=1e-8, abstol=1e-8, saveat=tsave)
@@ -172,6 +166,7 @@ function sample_glv(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax:
     # Extract the time points and trajectories
     t_vals = sol.t
     trajectories = hcat(sol.u...) # Convert solution vectors to a matrix
+    trajectories[trajectories .< zero_threshold] .= 0.0
 
     return t_vals, trajectories, sol
 end
@@ -202,8 +197,8 @@ function sample_glv(J::Matrix{Float64}, x0::Vector{Float64}, tmax::Float64, tsav
 
     # Problem setup
     tspan = (0.0, tmax)
-    p = (J, zero_threshold)
-    prob = ODEProblem(glv_threshold!, x0, tspan, p)
+    p = J
+    prob = ODEProblem(glv!, x0, tspan, p)
 
     # Solver options
     sol = solve(prob, Tsit5(), reltol=1e-8, abstol=1e-8, saveat=tsave)
@@ -211,6 +206,7 @@ function sample_glv(J::Matrix{Float64}, x0::Vector{Float64}, tmax::Float64, tsav
     # Extract the time points and trajectories
     t_vals = sol.t
     trajectories = hcat(sol.u...) # Convert solution vectors to a matrix
+    trajectories[trajectories .< zero_threshold] .= 0.0
 
     return t_vals, trajectories, sol
 end

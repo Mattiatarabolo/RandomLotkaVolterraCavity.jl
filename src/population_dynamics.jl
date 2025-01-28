@@ -1,10 +1,10 @@
 # Shortname for functions used in cavity update
 function gauss(x::Float64)
-    return exp(-x^2/2)/sqrt(2*pi)
+    return exp( - x^2 / 2) / sqrt( 2 * pi )
 end
 
 function mod_erf(x::Float64)
-    return (1+erf(x/sqrt(2)))/2
+    return ( 1 + erf(x / sqrt(2)) ) / 2
 end
 
 # Function to compute all the quantities obtain by the sum of neighbours' terms in the cavity update
