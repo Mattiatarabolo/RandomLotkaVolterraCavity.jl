@@ -53,8 +53,7 @@ end
 # Define the Random-Lotka-Volterra system of equations
 function glv!(du, u, p, t)  # p = (J, zero_threshold)
     J = p
-    mul!(du, J, u)
-    du .= u .* (1 .- u .+ du)
+    du .= u .* (1 .- u .+ J * u)
 end
 
 """
@@ -184,7 +183,7 @@ end
 Simulates the Generalized Lotka-Volterra system for fully connected networks. It sets to zero the abundances that are below a certain threshold.
 
 Arguments:
-- J: Sparse interaction matrix (NxN), where J[i,j] is the interaction strength from species j to species i.
+- J: Fully connected interaction matrix (NxN), where J[i,j] is the interaction strength from species j to species i.
 - x0: Initial abundances (Vector of size N).
 - tmax: End time for the simulation.
 - tsave: Vector of times for saving trajectories.
