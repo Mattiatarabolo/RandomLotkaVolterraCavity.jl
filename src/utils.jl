@@ -3,16 +3,17 @@ struct PdfDegVec
     deg::Vector{Int}
     kmin::Int
     kmax::Int
-    pdf_dict::Dict{Int, Float64}
+    index_dict::Dict{Int, Int}  # Store indices instead of pdf values
     
     function PdfDegVec(pdf_deg::Function, deg::Vector{Int})
         pdf_vals = pdf_deg.(deg)
-        new(pdf_vals, deg, minimum(deg), maximum(deg), Dict(deg .=> pdf_vals))
+        index_map = Dict(deg .=> eachindex(deg))  # Map degree to index
+        new(pdf_vals, deg, minimum(deg), maximum(deg), index_map)
     end
 end
 
-function get_pdf(p_k::PdfDegVec, k::Int)
-    return get(p_k.pdf_dict, k, 0)  # Returns 0.0 if k is not in deg
+function get_index(pdv::PdfDegVec, k::Int)
+    return get(pdv.index_dict, k, 0)  # Returns 0 if k is not found
 end
 
 # Function to sample correlated Gaussian random variables J and J'
