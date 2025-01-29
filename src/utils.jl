@@ -12,7 +12,7 @@ struct PdfDegVec
 end
 
 function get_pdf(p_k::PdfDegVec, k::Int)
-    return get(pdv.pdf_dict, k, 0)  # Returns 0.0 if k is not in deg
+    return get(p_k.pdf_dict, k, 0)  # Returns 0.0 if k is not in deg
 end
 
 # Function to sample correlated Gaussian random variables J and J'
