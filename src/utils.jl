@@ -19,7 +19,7 @@ end
 
 function sample_degree(rng::AbstractRNG, p_k::PdfDegVec)
     w = Weights(p_k.pdf)
-    return sample(rng, deg, w)
+    return sample(rng, p_k.deg, w)
 end
 
 function sample_neighs!(rng::AbstractRNG, neigh_idxs::Vector{Int}, i::Int, k::Int, P::Int)
