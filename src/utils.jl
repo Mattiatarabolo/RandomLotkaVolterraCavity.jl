@@ -3,11 +3,17 @@ struct PdfDegVec
     deg::Vector{Int}
     kmin::Int
     kmax::Int
+    pdf_dict::Dict{Int, Float64}
+    
     function PdfDegVec(pdf_deg::Function, deg::Vector{Int})
-        new(pdf_deg.(deg), deg, minimum(deg), maximum(deg))
+        pdf_vals = pdf_deg.(deg)
+        new(pdf_vals, deg, minimum(deg), maximum(deg), Dict(deg .=> pdf_vals))
     end
 end
 
+function get_pdf(p_k::PdfDegVec, k::Int)
+    return get(pdv.pdf_dict, k, 0)  # Returns 0.0 if k is not in deg
+end
 
 # Function to sample correlated Gaussian random variables J and J'
 function sample_couplings(rng, m::Float64, sigma2::Float64, gamma::Float64, K::Int)
