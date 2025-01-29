@@ -56,7 +56,7 @@ end
 ########################################################## Sparse graph ###########################################################################
 ####################################################################################################################################################
 
-function update_cav!(p_cav_k::Vector{Float64}, P::Int, m::Float64, sigma2::Float64, gamma::Float64, K::Int, rng::AbstractRNG, mu_cav_pop::Vector{Float64}, q_cav_pop::Vector{Float64}, chi_cav_pop::Vector{Float64}, J_pop::Vector{Float64}, Jp_pop::Vector{Float64}, neigh_idxs::Vector{Int})
+function update_cav!(p_cav_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, gamma::Float64, K::Int, rng::AbstractRNG, mu_cav_pop::Vector{Float64}, q_cav_pop::Vector{Float64}, chi_cav_pop::Vector{Float64}, J_pop::Vector{Float64}, Jp_pop::Vector{Float64}, neigh_idxs::Vector{Int})
     # Update each site in the population
     @inbounds for i in shuffle(rng, 1:P)
         # Sample the degree k
@@ -89,7 +89,7 @@ function update_cav!(p_cav_k::Vector{Float64}, P::Int, m::Float64, sigma2::Float
     end
 end
 
-function update_full!(p_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, mu_pop, q_pop, chi_pop, neigh_idxs)
+function update_full!(p_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, gamma::Float64, K::Int, mu_cav_pop::Vector{Float64}, q_cav_pop::Vector{Float64}, chi_cav_pop::Vector{Float64}, J_pop::Vector{Float64}, Jp_pop::Vector{Float64}, mu_pop::Vector{Float64}, q_pop::Vector{Float64}, chi_pop::Vector{Float64}, neigh_idxs::Vector{Int})
     # Update each site in the population
     @inbounds @fastmath for i in shuffle(rng, 1:P)
         k_full = sample_degree(rng, p_k)
@@ -119,8 +119,8 @@ end
 
 # Function to run population dynamics with all the performance tips included
 function population_dynamics(
-    p_k::Vector{Float64}, 
-    p_cav_k::Vector{Float64}, 
+    p_k::PdfDegVec, 
+    p_cav_k::PdfDegVec, 
     P::Int, 
     tol, 
     max_iter::Int, 
@@ -128,14 +128,12 @@ function population_dynamics(
     sigma2::Float64, 
     gamma::Float64, 
     K::Int;
-    check_vars=Dict("avg_mu"=>0.0), 
-    error_func=error_func, 
-    check_conv=30, 
-    rng=Xoshiro(1234), 
-    verbose=false,
-    plothist=false)
-
-    @assert length(p_k) == length(p_cav_k)+1
+    check_vars::Dict{String, Float64} = Dict("avg_mu"=>0.0), 
+    error_func::Function = error_func, 
+    check_conv::Int = 30, 
+    rng::AbstractRNG = Xoshiro(1234), 
+    verbose::Bool = false,
+    plothist::Bool = false)
 
     # Initialize populations
     mu_cav_pop = rand(rng, P)
@@ -146,7 +144,7 @@ function population_dynamics(
     chi_pop = zeros(P)
     J_pop = zeros(P)
     Jp_pop = zeros(P)
-    neigh_idxs = zeros(Int, length(p_k))
+    neigh_idxs = zeros(Int, p_k.kmax)
 
     if plothist
         _, axs = plt.subplots(1,3,figsize=(10, 4))

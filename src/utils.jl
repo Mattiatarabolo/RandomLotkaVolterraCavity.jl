@@ -1,3 +1,14 @@
+struct PdfDegVec
+    pdf::Vector{Float64}
+    deg::Vector{Int}
+    kmin::Int
+    kmax::Int
+    function PdfDegVec(pdf_deg::Function, deg::Vector{Int})
+        new(pdf_deg.(deg), deg, minimum(deg), maximum(deg))
+    end
+end
+
+
 # Function to sample correlated Gaussian random variables J and J'
 function sample_couplings(rng, m::Float64, sigma2::Float64, gamma::Float64, K::Int)
     u, v = randn(rng, 2)
@@ -6,12 +17,12 @@ function sample_couplings(rng, m::Float64, sigma2::Float64, gamma::Float64, K::I
     return J, J_prime
 end
 
-function sample_degree(rng::AbstractRNG, p_k::Vector{Float64})
-    w = Weights(p_k)
-    return sample(rng, w) - 1
+function sample_degree(rng::AbstractRNG, p_k::PdfDegVec)
+    w = Weights(p_k.pdf)
+    return sample(rng, deg, w)
 end
 
-function sample_neighs!(rng, neigh_idxs, i, k, P)
+function sample_neighs!(rng::AbstractRNG, neigh_idxs::Vector{Int}, i::Int, k::Int, P::Int)
     for j in 1:k
         check = true
         while check
@@ -21,14 +32,14 @@ function sample_neighs!(rng, neigh_idxs, i, k, P)
     end
 end
 
-function testvalues(sum_mu, sum_q, sum_chi, Epsilon, Delta)
+function testvalues(sum_mu::Float64, sum_q::Float64, sum_chi::Float64, Epsilon::Float64, Delta::Float64)
     if sum_q < 0 || sum_chi == 1|| !isfinite(sum_mu) || !isfinite(sum_q) || !isfinite(sum_chi) || !isfinite(Epsilon) || !isfinite(Delta)
         println("sum_mu=$(sum_mu), sum_q=$(sum_q), sum_chi=$(sum_chi), Epsilon=$(Epsilon), Delta=$(Delta)")
         throw(ArgumentError("Invalid values"))
     end
 end
 
-function testvalues(mu, q, chi, sum_q, sum_chi, Delta)
+function testvalues(mu::Float64, q::Float64, chi::Float64, sum_q::Float64, sum_chi::Float64, Delta::Float64)
     if mu < 0 || q < 0 || !isfinite(mu) || !isfinite(q) || !isfinite(chi)
         println("mu=$(mu), q=$(q), chi=$(chi), sum_q=$(sum_q), sum_chi=$(sum_chi), Delta=$(Delta)")
         throw(ArgumentError("Invalid values"))
@@ -36,7 +47,7 @@ function testvalues(mu, q, chi, sum_q, sum_chi, Delta)
 end
 
 
-function error_func(check_vars, mu_population, q_population, chi_population)
+function error_func(check_vars::Dict{String, Float64}, mu_population::Vector{Float64}, q_population::Vector{Float64}, chi_population::Vector{Float64})
     # Calculate new averages for convergence checking
     new_avg_mu = mean(mu_population)
 
@@ -213,7 +224,7 @@ end
 
 
 """
-    sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::Vector{Float64}, mu_pop::Vector{Float64}, q_pop::Vector{Float64}, chi_pop::Vector{Float64}, nsim::Int, P::Int, rng::AbstractRNG,zero_threshold::Float64)
+    sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::PdfDegVec, mu_pop::Vector{Float64}, q_pop::Vector{Float64}, chi_pop::Vector{Float64}, nsim::Int, P::Int, rng::AbstractRNG,zero_threshold::Float64)
 
 Samples nsim fixed-point abundances of a random Generalized Lotka-Volterra system with correlated gaussian random interactions and degree distribution p_k. It uses the populations of the mean abundances, mean squared abundances and susceptibilities obtained from the population dynamics algorithm.
 
@@ -222,7 +233,7 @@ Arguments:
 - sigma2: Variance of the Gaussian distribution of the interactions.
 - gamma: Correlation between the two interaction parameters Jᵢⱼ and Jⱼᵢ.
 - K: Number of neighbors.
-- p_k: Degree distribution. Vector of size kmax+1 with the probability of having k = 0,...,kmax neighbors.
+- p_k: Degree distribution. Vector of type PdfDegVec the probability of having k neighbors (p_k.pdf) with k ∈ p_k.deg.
 - mu_pop: Vector of size P with the population of the mean abundances. It is obtained from the population dynamics algorithm.
 - q_pop: Vector of size P with the population of the mean squared abundances. It is obtained from the population dynamics algorithm.
 - chi_pop: Vector of size P with the population of the susceptibilities. It is obtained from the population dynamics algorithm.
@@ -234,9 +245,9 @@ Arguments:
 Returns:
 - xvec: Vector of size nsim*P with the fixed-point abundances.
 """
-function sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::Vector{Float64}, mu_pop::Vector{Float64}, q_pop::Vector{Float64}, chi_pop::Vector{Float64}, nsim::Int, P::Int, rng::AbstractRNG, zero_threshold::Float64)
+function sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::PdfDegVec, mu_pop::Vector{Float64}, q_pop::Vector{Float64}, chi_pop::Vector{Float64}, nsim::Int, P::Int, rng::AbstractRNG, zero_threshold::Float64)
     xvec = zeros(nsim * P)
-    neigh_idxs = zeros(Int, length(p_k))
+    neigh_idxs = zeros(Int, p_k.kmax)
     @inbounds @fastmath for i in 1:P
         @inbounds @fastmath for isim in 1:nsim
             k = sample_degree(rng, p_k)
@@ -262,7 +273,7 @@ function sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::Vect
 end
 
 """
-    sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::Vector{Float64}, mu_avg::Float64, q_avg::Float64, chi_avg::Float64, nsim::Int, P::Int, rng::AbstractRNG, zero_threshold::Float64)
+    sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::PdfDegVec, mu_avg::Float64, q_avg::Float64, chi_avg::Float64, nsim::Int, P::Int, rng::AbstractRNG, zero_threshold::Float64)
 
 Samples nsim fixed-point abundances of a random Generalized Lotka-Volterra system with correlated gaussian random interactions and degree distribution p_k. It uses the averages of the populations of the mean abundances, mean squared abundances and susceptibilities obtained from the population dynamics algorithm.
 
@@ -271,7 +282,7 @@ Arguments:
 - sigma2: Variance of the Gaussian distribution of the interactions.
 - gamma: Correlation between the two interaction parameters Jᵢⱼ and Jⱼᵢ.
 - K: Number of neighbors.
-- p_k: Degree distribution. Vector of size kmax+1 with the probability of having k = 0,...,kmax neighbors.
+- p_k: Degree distribution. Vector of type PdfDegVec the probability of having k neighbors (p_k.pdf) with k ∈ p_k.deg.
 - mu_avg: Average of the population of the mean abundances. It is obtained from the population dynamics algorithm.
 - q_pop: Average of the population of the mean squared abundances. It is obtained from the population dynamics algorithm.
 - chi_pop: Average of the population of the susceptibilities. It is obtained from the population dynamics algorithm.
@@ -283,7 +294,7 @@ Arguments:
 Returns:
 - xvec: Vector of size nsim*P with the fixed-point abundances.
 """
-function sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::Vector{Float64}, mu_avg::Float64, q_avg::Float64, chi_avg::Float64, nsim::Int, P::Int, rng::AbstractRNG, zero_threshold::Float64)
+function sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::PdfDegVec, mu_avg::Float64, q_avg::Float64, chi_avg::Float64, nsim::Int, P::Int, rng::AbstractRNG, zero_threshold::Float64)
     xvec = zeros(nsim * P)
     @inbounds @fastmath for i in 1:P
         @inbounds @fastmath for isim in 1:nsim
