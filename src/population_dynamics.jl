@@ -58,7 +58,7 @@ end
 
 function update_cav!(p_cav_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, gamma::Float64, K::Int, rng::AbstractRNG, mu_cav_pop::Vector{Float64}, q_cav_pop::Vector{Float64}, chi_cav_pop::Vector{Float64}, J_pop::Vector{Float64}, Jp_pop::Vector{Float64}, neigh_idxs::Vector{Int})
     # Update each site in the population
-    @inbdounds for i in shuffle(rng, 1:P)
+    @inbounds for i in shuffle(rng, 1:P)
         # Sample the degree k
         k_cav = sample_degree(rng, p_cav_k)
 
