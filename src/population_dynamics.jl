@@ -12,7 +12,7 @@ function sumpop(mu_pop::Vector{Float64}, q_pop::Vector{Float64}, chi_pop::Vector
     sum_mu = 0.0
     sum_q = 0.0
     sum_chi = 0.0
-    for neigh_idx in 1:k
+    @inbounds @simd for neigh_idx in 1:k
         j = neigh_idxs[neigh_idx]
         sum_mu += J_pop[j] * mu_pop[j]
         sum_q += J_pop[j]^2 * q_pop[j]
@@ -58,7 +58,7 @@ end
 
 function update_cav!(p_cav_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, gamma::Float64, K::Int, rng::AbstractRNG, mu_cav_pop::Vector{Float64}, q_cav_pop::Vector{Float64}, chi_cav_pop::Vector{Float64}, J_pop::Vector{Float64}, Jp_pop::Vector{Float64}, neigh_idxs::Vector{Int})
     # Update each site in the population
-    for i in shuffle(rng, 1:P)
+    @inbdounds for i in shuffle(rng, 1:P)
         # Sample the degree k
         k_cav = sample_degree(rng, p_cav_k)
 
@@ -74,7 +74,7 @@ function update_cav!(p_cav_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, ga
         
         # CAVITY UPDATE
         # Sample k_cav pairs of correlated J, J' values
-        for j in neigh_idxs[1:end-1]
+        @inbounds @simd for j in neigh_idxs[1:end-1]
             J_pop[j], Jp_pop[j] = sample_couplings(rng, m, sigma2, gamma, K)
         end
 
@@ -91,7 +91,7 @@ end
 
 function update_full!(p_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, gamma::Float64, K::Int, rng::AbstractRNG, mu_cav_pop::Vector{Float64}, q_cav_pop::Vector{Float64}, chi_cav_pop::Vector{Float64}, J_pop::Vector{Float64}, Jp_pop::Vector{Float64}, mu_pop::Vector{Float64}, q_pop::Vector{Float64}, chi_pop::Vector{Float64}, neigh_idxs::Vector{Int})
     # Update each site in the population
-    for i in shuffle(rng, 1:P)
+    @inbounds for i in shuffle(rng, 1:P)
         k_full = sample_degree(rng, p_k)
 
         if k_full == 0
@@ -105,7 +105,7 @@ function update_full!(p_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, gamma
 
         # FULL UPDATE
         # Sample k_cav pairs of correlated J, J' values
-        for j in neigh_idxs
+        @inbounds @simd for j in neigh_idxs
             J_pop[j], Jp_pop[j] = sample_couplings(rng, m, sigma2, gamma, K)
         end
         # Compute the new values for mu, q, chi using the update functions
@@ -159,7 +159,7 @@ function population_dynamics(
 
     converged = false
     # Loop over iterations until convergence or max_iter is reached
-    @showprogress for t in 1:max_iter
+    @inbounds @showprogress for t in 1:max_iter
 
         update_cav!(p_cav_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, neigh_idxs)
 
@@ -242,103 +242,3 @@ function population_dynamics(
 
     return mu_pop, q_pop, chi_pop, mu_cav_pop, q_cav_pop, chi_cav_pop, converged
 end
-
-
-
-#=
-####################################################################################################################################################
-########################################################## Fully connected graph ###################################################################
-####################################################################################################################################################
-
-# Function to compute all the quantities obtain by the sum of neighbours' terms in the cavity update
-function sumpop_FC(
-    mu_pop::Vector{Float64}, 
-    q_pop::Vector{Float64}, 
-    q_pop::Vector{Float64}, 
-    J_pop::Vector{Float64}, 
-    Jp_pop::Vector{Float64}, 
-    i::Int, 
-    P::Int)
-
-    sum_mu = 0.0
-    sum_q = 0.0
-    sum_chi = 0.0
-    for j in 1:P
-        if j == i
-            continue
-        end
-        sum_mu += J_pop[j] * mu_pop[j]
-        sum_q += J_pop[j]^2 * q_pop[j]
-        sum_chi += J_pop[j] * Jp_pop[j] * q_pop[j]
-    end
-    Eps = sqrt(sum_q)
-    Delta = (1+sum_mu)/Eps
-
-    testvalues(sum_mu, sum_q, sum_chi, Eps, Delta)
-    return sum_q, sum_chi, Eps, Delta
-end
-
-# Function to run population dynamics with all the performance tips included
-function population_dynamics_FC(
-    P::Int, 
-    tol, 
-    max_iter::Int, 
-    m::Float64, 
-    sigma2::Float64, 
-    gamma::Float64; 
-    check_vars=Dict("avg_mu"=>0.0), 
-    error_func=error_func, 
-    check_conv=30, 
-    rng=Xoshiro(1234), 
-    verbose=false)
-
-    # Initialize populations
-    mu_pop = rand(rng, P)
-    q_pop = rand(rng, P)
-    q_pop = rand(rng, P)
-    J_pop = zeros(P)
-    Jp_pop = zeros(P)
-
-    converged = false
-    # Loop over iterations until convergence or max_iter is reached
-    @showprogress for t in 1:max_iter
-
-        # Update each site in the population
-        for i in shuffle(rng, 1:P)
-            for j in 1:P
-                if j == i
-                    continue
-                end
-                J_pop[j], Jp_pop[j] = sample_couplings(rng, m, sigma2, gamma, P)
-            end
-            # Compute the new values for mu, q, chi using the update functions
-            sum_q, sum_chi, Eps, Delta = sumpop_FC(mu_pop, q_pop, q_pop, J_pop, Jp_pop, i, P)
-            mu_pop[i] = f_mu(sum_chi, Eps, Delta)
-            q_pop[i] = f_q(sum_q, sum_chi, Delta)
-            q_pop[i] = f_chi(sum_chi, Delta)
-            testvalues(mu_pop[i], q_pop[i], q_pop[i], sum_q, sum_chi, Delta)  
-        end
-
-        converged = error_func(check_vars, mu_pop, q_pop, q_pop, tol, t, check_conv)
-
-        # Check for convergence
-        if t % check_conv == 0  # Check every 10 iterations
-            if verbose
-                println("Iteration $t: max_diff = $max_diff")
-            end
-            if converged
-                if verbose
-                    println("Converged after $t iterations.")
-                end
-                break
-            end
-        end
-    end
-
-    if !converged && verbose
-        println("Reached max iterations without convergence.")
-    end
-
-    return mu_pop, q_pop, q_pop, converged
-end
-=#
