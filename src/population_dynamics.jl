@@ -133,7 +133,8 @@ function population_dynamics(
     check_conv::Int = 30, 
     rng::AbstractRNG = Xoshiro(1234), 
     verbose::Bool = false,
-    plothist::Bool = false)
+    plothist::Bool = false,
+    avg_iter::Int = 0)
 
     # Initialize populations
     mu_cav_pop = rand(rng, P)
@@ -238,6 +239,26 @@ function population_dynamics(
 
     if !converged && verbose
         println("Reached max iterations without convergence.")
+    end
+
+    if !converged && avg_iter > 0
+        if verbose
+            println("Running average over $avg_iter iterations.")
+        end
+        mu_cav_pop_avg = zeros(P)
+        q_cav_pop_avg = zeros(P)
+        chi_cav_pop_avg = zeros(P)
+        for iter in 1:avg_iter
+            update_cav!(p_cav_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, neigh_idxs)
+            mu_cav_pop_avg .+= mu_cav_pop
+            q_cav_pop_avg .+= q_cav_pop
+            chi_cav_pop_avg .+= chi_cav_pop
+        end
+        mu_cav_pop_avg ./= avg_iter
+        q_cav_pop_avg ./= avg_iter
+        chi_cav_pop_avg ./= avg_iter
+
+        update_full!(p_k, P, m, sigma2, gamma, K, rng, mu_cav_pop_avg, q_cav_pop_avg, chi_cav_pop_avg, J_pop, Jp_pop, mu_pop, q_pop, chi_pop, neigh_idxs)
     end
 
     return mu_pop, q_pop, chi_pop, mu_cav_pop, q_cav_pop, chi_cav_pop, converged
