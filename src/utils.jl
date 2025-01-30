@@ -255,8 +255,8 @@ Returns:
 function sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::PdfDegVec, mu_pop::Vector{Float64}, q_pop::Vector{Float64}, chi_pop::Vector{Float64}, nsim::Int, P::Int, rng::AbstractRNG, zero_threshold::Float64)
     xvec = zeros(nsim * P)
     neigh_idxs = zeros(Int, p_k.kmax)
-    @inbounds @fastmath for i in 1:P
-        @inbounds @fastmath for isim in 1:nsim
+    for i in 1:P
+        for isim in 1:nsim
             k = sample_degree(rng, p_k)
             if k == 0
                 xvec[(i-1)*nsim+isim] = 1.0
@@ -266,7 +266,7 @@ function sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::PdfD
             sum_mu = 0.0
             sum_q = 0.0
             sum_chi = 0.0
-            @inbounds @fastmath for neigh_idx in 1:k
+            for neigh_idx in 1:k
                 j = neigh_idxs[neigh_idx]
                 J, Jprime = sample_couplings(rng, m, sigma2, gamma, K)
                 sum_mu += J * mu_pop[j]
@@ -303,8 +303,8 @@ Returns:
 """
 function sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::PdfDegVec, mu_avg::Float64, q_avg::Float64, chi_avg::Float64, nsim::Int, P::Int, rng::AbstractRNG, zero_threshold::Float64)
     xvec = zeros(nsim * P)
-    @inbounds @fastmath for i in 1:P
-        @inbounds @fastmath for isim in 1:nsim
+    for i in 1:P
+        for isim in 1:nsim
             k = sample_degree(rng, p_k)
             if k == 0
                 xvec[(i-1)*nsim+isim] = 1.0
@@ -313,7 +313,7 @@ function sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::PdfD
             sum_mu = 0.0
             sum_q = 0.0
             sum_chi = 0.0
-            @inbounds @fastmath for _ in 1:k
+            for _ in 1:k
                 J, Jprime = sample_couplings(rng, m, sigma2, gamma, K)
                 sum_mu += J
                 sum_q += J^2

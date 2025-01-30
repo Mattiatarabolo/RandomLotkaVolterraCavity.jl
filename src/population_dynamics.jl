@@ -12,7 +12,7 @@ function sumpop(mu_pop::Vector{Float64}, q_pop::Vector{Float64}, chi_pop::Vector
     sum_mu = 0.0
     sum_q = 0.0
     sum_chi = 0.0
-    @inbounds @fastmath @simd for neigh_idx in 1:k
+    for neigh_idx in 1:k
         j = neigh_idxs[neigh_idx]
         sum_mu += J_pop[j] * mu_pop[j]
         sum_q += J_pop[j]^2 * q_pop[j]
@@ -58,7 +58,7 @@ end
 
 function update_cav!(p_cav_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, gamma::Float64, K::Int, rng::AbstractRNG, mu_cav_pop::Vector{Float64}, q_cav_pop::Vector{Float64}, chi_cav_pop::Vector{Float64}, J_pop::Vector{Float64}, Jp_pop::Vector{Float64}, neigh_idxs::Vector{Int})
     # Update each site in the population
-    @inbounds for i in shuffle(rng, 1:P)
+    for i in shuffle(rng, 1:P)
         # Sample the degree k
         k_cav = sample_degree(rng, p_cav_k)
 
@@ -74,7 +74,7 @@ function update_cav!(p_cav_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, ga
         
         # CAVITY UPDATE
         # Sample k_cav pairs of correlated J, J' values
-        @inbounds for j in neigh_idxs
+        for j in neigh_idxs
             J_pop[j], Jp_pop[j] = sample_couplings(rng, m, sigma2, gamma, K)
         end
 
@@ -91,7 +91,7 @@ end
 
 function update_full!(p_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, gamma::Float64, K::Int, rng::AbstractRNG, mu_cav_pop::Vector{Float64}, q_cav_pop::Vector{Float64}, chi_cav_pop::Vector{Float64}, J_pop::Vector{Float64}, Jp_pop::Vector{Float64}, mu_pop::Vector{Float64}, q_pop::Vector{Float64}, chi_pop::Vector{Float64}, neigh_idxs::Vector{Int})
     # Update each site in the population
-    @inbounds @fastmath for i in shuffle(rng, 1:P)
+    for i in shuffle(rng, 1:P)
         k_full = sample_degree(rng, p_k)
 
         if k_full == 0
@@ -105,7 +105,7 @@ function update_full!(p_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, gamma
 
         # FULL UPDATE
         # Sample k_cav pairs of correlated J, J' values
-        @inbounds @fastmath for j in neigh_idxs
+        for j in neigh_idxs
             J_pop[j], Jp_pop[j] = sample_couplings(rng, m, sigma2, gamma, K)
         end
         # Compute the new values for mu, q, chi using the update functions
@@ -263,7 +263,7 @@ function sumpop_FC(
     sum_mu = 0.0
     sum_q = 0.0
     sum_chi = 0.0
-    @inbounds @fastmath for j in 1:P
+    for j in 1:P
         if j == i
             continue
         end
@@ -304,8 +304,8 @@ function population_dynamics_FC(
     @showprogress for t in 1:max_iter
 
         # Update each site in the population
-        @inbounds for i in shuffle(rng, 1:P)
-            @inbounds for j in 1:P
+        for i in shuffle(rng, 1:P)
+            for j in 1:P
                 if j == i
                     continue
                 end
