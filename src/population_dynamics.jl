@@ -71,6 +71,8 @@ function update_cav!(p_cav_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, ga
 
         # Get k random neighbors
         sample_neighs!(rng, neigh_idxs, i, k_cav, P)
+
+        println("neigh_idxs: ", neigh_idxs)
         
         # CAVITY UPDATE
         # Sample k_cav pairs of correlated J, J' values

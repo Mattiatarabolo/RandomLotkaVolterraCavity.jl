@@ -25,8 +25,12 @@ function sample_couplings(rng, m::Float64, sigma2::Float64, gamma::Float64, K::I
 end
 
 function sample_degree(rng::AbstractRNG, p_k::PdfDegVec)
-    w = Weights(p_k.pdf)
-    return sample(rng, p_k.deg, w)
+    if length(p_k.pdf) == 1
+        return p_k.deg[1]
+    else
+        w = Weights(p_k.pdf)
+        return sample(rng, p_k.deg, w)
+    end
 end
 
 function sample_neighs!(rng::AbstractRNG, neigh_idxs::Vector{Int}, i::Int, k::Int, P::Int)
