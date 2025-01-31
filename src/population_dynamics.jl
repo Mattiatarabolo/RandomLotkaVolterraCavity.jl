@@ -322,6 +322,14 @@ Run the population dynamics algorithm for the fixed point abundances of the Rand
 # Optional arguments
 - `saveat::Union{Int, Vector{Int}}`: iteration numbers to save the populations (default 0). If it is an integer, it saves the populations every saveat iterations. If it is a vector, it saves the populations at the iterations specified by saveat.
 - `rng::AbstractRNG`: random number generator (default Xoshiro(1234)).
+
+# Returns
+- `mu_pop_vec`: matrix with the fixed point values of the variable mu at the iterations specified by saveat.
+- `q_pop_vec`: matrix with the fixed point values of the variable q at the iterations specified by saveat.
+- `chi_pop_vec`: matrix with the fixed point values of the variable chi at the iterations specified by saveat.
+- `mu_cav_pop_vec`: matrix with the fixed point values of the variable mu in the cavity at the iterations specified by saveat.
+- `q_cav_pop_vec`: matrix with the fixed point values of the variable q in the cavity at the iterations specified by saveat.
+- `chi_cav_pop_vec`: matrix with the fixed point values of the variable chi in the cavity at the iterations specified by saveat.
 """
 function population_dynamics!(
     mu_cav_pop::Vector{Float64},
@@ -368,10 +376,10 @@ function population_dynamics!(
         update_cav!(p_cav_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, neigh_idxs)
 
         if t in saveat
-            @inbounds mu_cav_pop_vec[:, t] .= mu_cav_pop
-            @inbounds q_cav_pop_vec[:, t] .= q_cav_pop
-            @inbounds chi_cav_pop_vec[:, t] .= chi_cav_pop
-            update_full!(p_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, view(mu_pop_vec[:,t]), view(q_pop_vec[:,t]), view(chi_pop_vec[:,t]), neigh_idxs)
+            mu_cav_pop_vec[:, t] .= mu_cav_pop
+            q_cav_pop_vec[:, t] .= q_cav_pop
+            chi_cav_pop_vec[:, t] .= chi_cav_pop
+            update_full!(p_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, mu_pop_vec[:,t], q_pop_vec[:,t], chi_pop_vec[:,t], neigh_idxs)
         end
     end
 
