@@ -361,6 +361,9 @@ function population_dynamics!(
     K = p_k.K
 
     # Initialize populations
+    mu_pop = zeros(P)
+    q_pop = zeros(P)
+    chi_pop = zeros(P)
     mu_pop_vec = zeros(P, lensaveat)
     q_pop_vec = zeros(P, lensaveat)
     chi_pop_vec = zeros(P, lensaveat)
@@ -381,7 +384,10 @@ function population_dynamics!(
             mu_cav_pop_vec[:, idx] .= mu_cav_pop
             q_cav_pop_vec[:, idx] .= q_cav_pop
             chi_cav_pop_vec[:, idx] .= chi_cav_pop
-            update_full!(p_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, mu_pop_vec[:,idx], q_pop_vec[:,idx], chi_pop_vec[:,idx], neigh_idxs)
+            update_full!(p_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, mu_pop, q_pop, chi_pop, neigh_idxs)
+            mu_pop_vec[:, idx] .= mu_pop
+            q_pop_vec[:, idx] .= q_pop
+            chi_pop_vec[:, idx] .= chi_pop
             idx += 1
         end
     end
