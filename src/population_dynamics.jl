@@ -74,7 +74,7 @@ function update_cav!(p_cav_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, ga
         
         # CAVITY UPDATE
         # Sample k_cav pairs of correlated J, J' values
-        @inbounds @simd for j in neigh_idxs[1:end-1]
+         @inbounds @simd for j in neigh_idxs[1:end-1]
             J_pop[j], Jp_pop[j] = sample_couplings(rng, m, sigma2, gamma, K)
         end
 
@@ -348,13 +348,14 @@ function population_dynamics!(
         saveat = max_iter
     end
 
-    if length(saveat) == 0
+    if typeof(saveat) == Int
         @assert saveat < max_iter "saveat must be less than max_iter"
-        saveat = 1:saveat:max_iter
+        saveat = collect(1:saveat:max_iter)
     else
         @assert saveat[end] < max_iter "saveat values must be less than max_iter"
     end
 
+    println("saveat = $saveat")
     P = length(mu_cav_pop)
     lensaveat = length(saveat)
     K = p_k.K
@@ -371,15 +372,17 @@ function population_dynamics!(
     neigh_idxs = zeros(Int, p_k.kmax)
 
     # Loop over iterations until convergence or max_iter is reached
+    idx = 1
     @inbounds @showprogress for t in 1:max_iter
 
         update_cav!(p_cav_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, neigh_idxs)
 
         if t in saveat
-            mu_cav_pop_vec[:, t] .= mu_cav_pop
-            q_cav_pop_vec[:, t] .= q_cav_pop
-            chi_cav_pop_vec[:, t] .= chi_cav_pop
-            update_full!(p_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, mu_pop_vec[:,t], q_pop_vec[:,t], chi_pop_vec[:,t], neigh_idxs)
+            mu_cav_pop_vec[:, idx] .= mu_cav_pop
+            q_cav_pop_vec[:, idx] .= q_cav_pop
+            chi_cav_pop_vec[:, idx] .= chi_cav_pop
+            update_full!(p_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, mu_pop_vec[:,idx], q_pop_vec[:,idx], chi_pop_vec[:,idx], neigh_idxs)
+            idx += 1
         end
     end
 

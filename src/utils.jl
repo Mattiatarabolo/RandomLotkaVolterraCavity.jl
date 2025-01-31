@@ -136,7 +136,7 @@ Arguments:
 - `P::Int`: Number of nodes in the population.
 """
 function sample_neighs!(rng::AbstractRNG, neigh_idxs::Vector{Int}, i::Int, k::Int, P::Int)
-    for j in 1:k
+    @inbounds for j in 1:k
         check = true
         while check
             neigh_idxs[j] = rand(rng, 1:P)
@@ -365,8 +365,8 @@ function sample_x(m::Float64, sigma2::Float64, gamma::Float64, p_k::PdfDegVec, m
     P = length(mu_pop)
     xvec = zeros(nsim * P)
     neigh_idxs = zeros(Int, p_k.kmax)
-    for i in 1:P
-        for isim in 1:nsim
+    @inbounds for i in 1:P
+        @inbounds for isim in 1:nsim
             k = sample_degree(rng, p_k)
             if k == 0
                 xvec[(i-1)*nsim+isim] = 1.0
@@ -376,7 +376,7 @@ function sample_x(m::Float64, sigma2::Float64, gamma::Float64, p_k::PdfDegVec, m
             sum_mu = 0.0
             sum_q = 0.0
             sum_chi = 0.0
-            for neigh_idx in 1:k
+            @inbounds @simd for neigh_idx in 1:k
                 j = neigh_idxs[neigh_idx]
                 J, Jprime = sample_couplings(rng, m, sigma2, gamma, K)
                 sum_mu += J * mu_pop[j]
@@ -414,8 +414,8 @@ Returns:
 function sample_x(m::Float64, sigma2::Float64, gamma::Float64, p_k::PdfDegVec, mu_avg::Float64, q_avg::Float64, chi_avg::Float64, nsim::Int; rng::AbstractRNG=Xoshiro(1234), zero_threshold::Float64=0.0)
     K = p_k.K
     xvec = zeros(nsim)
-    for i in 1:P
-        for isim in 1:nsim
+    @inbounds for i in 1:P
+        @inbounds for isim in 1:nsim
             k = sample_degree(rng, p_k)
             if k == 0
                 xvec[(i-1)*nsim+isim] = 1.0
@@ -424,7 +424,7 @@ function sample_x(m::Float64, sigma2::Float64, gamma::Float64, p_k::PdfDegVec, m
             sum_mu = 0.0
             sum_q = 0.0
             sum_chi = 0.0
-            for _ in 1:k
+            @inbounds @simd for _ in 1:k
                 J, Jprime = sample_couplings(rng, m, sigma2, gamma, K)
                 sum_mu += J
                 sum_q += J^2
