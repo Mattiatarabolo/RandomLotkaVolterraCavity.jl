@@ -1,23 +1,20 @@
+using Documenter, DocStringExtensions
 using RandomLotkaVolterraCavity
-using Documenter
 
-DocMeta.setdocmeta!(RandomLotkaVolterraCavity, :DocTestSetup, :(using RandomLotkaVolterraCavity); recursive=true)
-
-makedocs(;
+push!(LOAD_PATH,"../src/")
+makedocs(
     modules=[RandomLotkaVolterraCavity],
     authors="Mattia Tarabolo <mattia.tarabolo@gmail.com> and contributors",
-    sitename="RandomLotkaVolterraCavity.jl",
-    format=Documenter.HTML(;
-        canonical="https://Mattia Tarabolo.github.io/RandomLotkaVolterraCavity.jl",
-        edit_link="main",
-        assets=String[],
-    ),
+    sitename="RandomLotkaVolterraCavity.jl Documentation",
+    format=Documenter.HTML(prettyurls = false),
     pages=[
         "Home" => "index.md",
+        "Guide" => "guide.md",
+        "Functions" => "functions.md"
     ],
 )
 
 deploydocs(;
-    repo="github.com/Mattia Tarabolo/RandomLotkaVolterraCavity.jl",
+    repo="github.com/Mattiatarabolo/RandomLotkaVolterraCavity.jl.git",
     devbranch="main",
 )

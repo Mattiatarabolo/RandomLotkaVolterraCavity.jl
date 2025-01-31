@@ -56,7 +56,7 @@ end
 ########################################################## Sparse graph ###########################################################################
 ####################################################################################################################################################
 
-function update_cav!(p_cav_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, gamma::Float64, K::Int, rng::AbstractRNG, mu_cav_pop::Vector{Float64}, q_cav_pop::Vector{Float64}, chi_cav_pop::Vector{Float64}, J_pop::Vector{Float64}, Jp_pop::Vector{Float64}, neigh_idxs::Vector{Int})
+function update_cav!(p_cav_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, gamma::Float64, K::Union{Int,Float64}, rng::AbstractRNG, mu_cav_pop::Vector{Float64}, q_cav_pop::Vector{Float64}, chi_cav_pop::Vector{Float64}, J_pop::Vector{Float64}, Jp_pop::Vector{Float64}, neigh_idxs::Vector{Int})
     # Update each site in the population
     @inbounds for i in shuffle(rng, 1:P)
         # Sample the degree k
@@ -89,7 +89,7 @@ function update_cav!(p_cav_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, ga
     end
 end
 
-function update_full!(p_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, gamma::Float64, K::Int, rng::AbstractRNG, mu_cav_pop::Vector{Float64}, q_cav_pop::Vector{Float64}, chi_cav_pop::Vector{Float64}, J_pop::Vector{Float64}, Jp_pop::Vector{Float64}, mu_pop::Vector{Float64}, q_pop::Vector{Float64}, chi_pop::Vector{Float64}, neigh_idxs::Vector{Int})
+function update_full!(p_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, gamma::Float64, K::Union{Int,Float64}, rng::AbstractRNG, mu_cav_pop::Vector{Float64}, q_cav_pop::Vector{Float64}, chi_cav_pop::Vector{Float64}, J_pop::Vector{Float64}, Jp_pop::Vector{Float64}, mu_pop::Vector{Float64}, q_pop::Vector{Float64}, chi_pop::Vector{Float64}, neigh_idxs::Vector{Int})
     # Update each site in the population
     @inbounds for i in shuffle(rng, 1:P)
         k_full = sample_degree(rng, p_k)
@@ -118,23 +118,70 @@ function update_full!(p_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, gamma
 end
 
 # Function to run population dynamics with all the performance tips included
+"""
+    population_dynamics(
+        m::Float64, 
+        sigma2::Float64, 
+        gamma::Float64, 
+        p_k::PdfDegVec, 
+        p_cav_k::PdfDegVec,
+        P::Int,
+        tol,
+        max_iter::Int;
+        check_vars::Dict{String, Float64} = Dict("avg_mu"=>0.0), 
+        error_func::Function = error_func, 
+        check_conv::Int = 30, 
+        rng::AbstractRNG = Xoshiro(1234), 
+        verbose::Bool = false,
+        plothist::Bool = false
+    )
+
+Run the population dynamics algorithm for the fixed point abundances of theRandom Lotka Volterra model on a sparse graph.
+
+# Arguments
+- `m::Float64`: mean of the Gaussian distribution of the couplings.
+- `sigma2::Float64`: variance of the Gaussian distribution of the couplings.
+- `gamma::Float64`: strength of the selection.
+- `p_k::PdfDegVec`: degree distribution of the full graph.
+- `p_cav_k::PdfDegVec`: degree distribution of the cavity graph.
+- `P::Int`: number of sites in the population.
+- `max_iter::Int`: maximum number of iterations.
+
+# Optional arguments
+- `tol::Dict{String, Float64}`: dictionary with the tolerance for convergence (default Dict("avg"=>1e-3)).
+- `check_vars::Dict{String, Float64}`: dictionary with the variables to check for convergence (default Dict("avg_mu"=>0.0))
+- `error_func::Function`: function to check for convergence. Must have arguments check_vars, mu_population, q_population, chi_population, tol (default error_func(check_vars, mu_population, q_population, chi_population, tol) which checks if the difference of the average mu between consecutive iterations is within the tolerance).
+- `check_conv::Int`: number of iterations to check for convergence (default 30).
+- `rng::AbstractRNG`: random number generator (default Xoshiro(1234)).
+- `verbose::Bool`: print information about the convergence of the algorithm (default false).
+- `plothist::Bool`: plot histograms of the populations at each check_conv iterations (default false).
+
+# Returns
+- `mu_pop`: vector with the fixed point values of the variable mu.
+- `q_pop`: vector with the fixed point values of the variable q.
+- `chi_pop`: vector with the fixed point values of the variable chi.
+- `mu_cav_pop`: vector with the fixed point values of the variable mu in the cavity.
+- `q_cav_pop`: vector with the fixed point values of the variable q in the cavity.
+- `chi_cav_pop`: vector with the fixed point values of the variable chi in the cavity.
+- `converged`: boolean indicating if the algorithm converged.
+"""
 function population_dynamics(
-    p_k::PdfDegVec, 
-    p_cav_k::PdfDegVec, 
-    P::Int, 
-    tol, 
-    max_iter::Int, 
     m::Float64, 
     sigma2::Float64, 
     gamma::Float64, 
-    K::Int;
+    p_k::PdfDegVec, 
+    p_cav_k::PdfDegVec,
+    P::Int,
+    max_iter::Int;
+    tol::Dict{String, Float64} = Dict("avg"=>1e-3),
     check_vars::Dict{String, Float64} = Dict("avg_mu"=>0.0), 
     error_func::Function = error_func, 
     check_conv::Int = 30, 
     rng::AbstractRNG = Xoshiro(1234), 
     verbose::Bool = false,
-    plothist::Bool = false,
-    avg_iter::Int = 0)
+    plothist::Bool = false)
+
+    K = p_k.K
 
     # Initialize populations
     mu_cav_pop = rand(rng, P)
@@ -164,7 +211,7 @@ function population_dynamics(
 
         update_cav!(p_cav_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, neigh_idxs)
 
-        converged = error_func(check_vars, mu_cav_pop, q_cav_pop, chi_cav_pop, tol, t, check_conv)
+        converged = error_func(check_vars, mu_cav_pop, q_cav_pop, chi_cav_pop, tol)
 
         # Check for convergence
         if t % check_conv == 0  # Check every 10 iterations
@@ -241,25 +288,92 @@ function population_dynamics(
         println("Reached max iterations without convergence.")
     end
 
-    if !converged && avg_iter > 0
-        if verbose
-            println("Running average over $avg_iter iterations.")
-        end
-        mu_cav_pop_avg = zeros(P)
-        q_cav_pop_avg = zeros(P)
-        chi_cav_pop_avg = zeros(P)
-        for iter in 1:avg_iter
-            update_cav!(p_cav_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, neigh_idxs)
-            mu_cav_pop_avg .+= mu_cav_pop
-            q_cav_pop_avg .+= q_cav_pop
-            chi_cav_pop_avg .+= chi_cav_pop
-        end
-        mu_cav_pop_avg ./= avg_iter
-        q_cav_pop_avg ./= avg_iter
-        chi_cav_pop_avg ./= avg_iter
+    return mu_pop, q_pop, chi_pop, mu_cav_pop, q_cav_pop, chi_cav_pop, converged
+end
 
-        update_full!(p_k, P, m, sigma2, gamma, K, rng, mu_cav_pop_avg, q_cav_pop_avg, chi_cav_pop_avg, J_pop, Jp_pop, mu_pop, q_pop, chi_pop, neigh_idxs)
+"""
+    population_dynamics!(
+        mu_cav_pop::Vector{Float64},
+        q_cav_pop::Vector{Float64},
+        chi_cav_pop::Vector{Float64},
+        m::Float64, 
+        sigma2::Float64, 
+        gamma::Float64, 
+        p_k::PdfDegVec, 
+        p_cav_k::PdfDegVec,
+        max_iter::Int;
+        saveat::Union{Int, Vector{Int}} = 0,
+        rng::AbstractRNG = Xoshiro(1234)
+    )
+
+Run the population dynamics algorithm for the fixed point abundances of the Random Lotka Volterra model on a sparse graph. It starts from already computed cavity populations, and iterate the population dynamics algorithm max_iter times saving both the cavity and full populations at the iterations specified by saveat.
+
+# Arguments
+- `mu_cav_pop::Vector{Float64}`: vector with the initial values of the variable mu in the cavity.
+- `q_cav_pop::Vector{Float64}`: vector with the initial values of the variable q in the cavity.
+- `chi_cav_pop::Vector{Float64}`: vector with the initial values of the variable chi in the cavity.
+- `m::Float64`: mean of the Gaussian distribution of the couplings.
+- `sigma2::Float64`: variance of the Gaussian distribution of the couplings.
+- `gamma::Float64`: strength of the selection.
+- `p_k::PdfDegVec`: degree distribution of the full graph.
+- `p_cav_k::PdfDegVec`: degree distribution of the cavity graph.
+- `max_iter::Int`: maximum number of iterations.
+
+# Optional arguments
+- `saveat::Union{Int, Vector{Int}}`: iteration numbers to save the populations (default 0). If it is an integer, it saves the populations every saveat iterations. If it is a vector, it saves the populations at the iterations specified by saveat.
+- `rng::AbstractRNG`: random number generator (default Xoshiro(1234)).
+"""
+function population_dynamics!(
+    mu_cav_pop::Vector{Float64},
+    q_cav_pop::Vector{Float64},
+    chi_cav_pop::Vector{Float64},
+    m::Float64, 
+    sigma2::Float64, 
+    gamma::Float64, 
+    p_k::PdfDegVec,
+    p_cav_k::PdfDegVec,
+    max_iter::Int;
+    saveat::Union{Int, Vector{Int}} = 0,
+    rng::AbstractRNG = Xoshiro(1234))
+
+    if saveat == 0
+        saveat = max_iter
     end
 
-    return mu_pop, q_pop, chi_pop, mu_cav_pop, q_cav_pop, chi_cav_pop, converged
+    if length(saveat) == 0
+        @assert saveat < max_iter "saveat must be less than max_iter"
+        saveat = 1:saveat:max_iter
+    else
+        @assert saveat[end] < max_iter "saveat values must be less than max_iter"
+    end
+
+    P = length(mu_cav_pop)
+    lensaveat = length(saveat)
+    K = p_k.K
+
+    # Initialize populations
+    mu_pop_vec = zeros(P, lensaveat)
+    q_pop_vec = zeros(P, lensaveat)
+    chi_pop_vec = zeros(P, lensaveat)
+    mu_cav_pop_vec = zeros(P, lensaveat)
+    q_cav_pop_vec = zeros(P, lensaveat)
+    chi_cav_pop_vec = zeros(P, lensaveat)
+    J_pop = zeros(P)
+    Jp_pop = zeros(P)
+    neigh_idxs = zeros(Int, p_k.kmax)
+
+    # Loop over iterations until convergence or max_iter is reached
+    @inbounds @showprogress for t in 1:max_iter
+
+        update_cav!(p_cav_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, neigh_idxs)
+
+        if t in saveat
+            @inbounds mu_cav_pop_vec[:, t] .= mu_cav_pop
+            @inbounds q_cav_pop_vec[:, t] .= q_cav_pop
+            @inbounds chi_cav_pop_vec[:, t] .= chi_cav_pop
+            update_full!(p_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, view(mu_pop_vec[:,t]), view(q_pop_vec[:,t]), view(chi_pop_vec[:,t]), neigh_idxs)
+        end
+    end
+
+    return mu_pop_vec, q_pop_vec, chi_pop_vec, mu_cav_pop_vec, q_cav_pop_vec, chi_cav_pop_vec
 end

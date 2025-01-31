@@ -1,29 +1,118 @@
+"""
+    PdfDegVec
+
+Structure to store the degree distribution of a network.
+
+# Fields
+
+$(TYPEDFIELDS)
+
+"""
 struct PdfDegVec
+    """Probability distribution of the degree."""
     pdf::Vector{Float64}
+    """Vector of degrees."""
     deg::Vector{Int}
+    """Minimum degree."""
     kmin::Int
+    """Maximum degree."""
     kmax::Int
+    """Average degree."""
+    K::Union{Float64,Int64}
+    """Dictionary to map degree to index."""
     index_dict::Dict{Int, Int}  # Store indices instead of pdf values
-    
+    @doc """
+        PdfDegVec(pdf_deg::Function, deg::Vector{Int})
+
+    Constructs a `PdfDegVec` structure from a degree distribution function.
+
+    Arguments:
+    - `pdf_deg::Function`: Function that returns the probability of a given degree.
+    - `deg::Vector{Int}`: Vector of degrees.
+
+    Returns:
+    - `PdfDegVec`: Degree distribution structure.
+    """
     function PdfDegVec(pdf_deg::Function, deg::Vector{Int})
         pdf_vals = pdf_deg.(deg)
+        K = sum(pdf_vals .* deg)
         index_map = Dict(deg .=> eachindex(deg))  # Map degree to index
-        new(pdf_vals, deg, minimum(deg), maximum(deg), index_map)
+        new(pdf_vals, deg, minimum(deg), maximum(deg), K, index_map)
+    end
+
+    @doc """
+        PdfDegVec(pdf_deg::Function, deg::Vector{Int}, K::Union{Float64,Int64})
+
+    Constructs a `PdfDegVec` structure from a degree distribution function.
+
+    Arguments:
+    - `pdf_deg::Function`: Function that returns the probability of a given degree.
+    - `deg::Vector{Int}`: Vector of degrees.
+    - `K::Union{Float64,Int64}`: Average degree.
+
+    Returns:
+    - `PdfDegVec`: Degree distribution structure.
+    """
+    function PdfDegVec(pdf_deg::Function, deg::Vector{Int}, K::Union{Float64,Int64})
+        pdf_vals = pdf_deg.(deg)
+        index_map = Dict(deg .=> eachindex(deg))  # Map degree to index
+        new(pdf_vals, deg, minimum(deg), maximum(deg), K, index_map)
     end
 end
 
+"""
+    get_index(pdv::PdfDegVec, k::Int)
+
+Returns the index of a given degree in the degree distribution.
+
+Arguments:
+- `pdv::PdfDegVec`: Degree distribution structure.
+- `k::Int`: Degree.
+
+Returns:
+- `idx`: Index of the degree.
+"""
 function get_index(pdv::PdfDegVec, k::Int)
     return get(pdv.index_dict, k, 0)  # Returns 0 if k is not found
 end
 
 # Function to sample correlated Gaussian random variables J and J'
-function sample_couplings(rng, m::Float64, sigma2::Float64, gamma::Float64, K::Int)
+"""
+    sample_couplings(rng::AbstractRNG, m::Float64, sigma2::Float64, gamma::Float64, K::Union{Int,Float64})
+
+Samples correlated Gaussian random variables J and J'.
+
+Arguments:
+- `rng::AbstractRNG`: Random number generator.
+- `m::Float64`: Mean of the Gaussian distribution.
+- `sigma2::Float64`: Variance of the Gaussian distribution.
+- `gamma::Float64`: Correlation coefficient between J and J'.
+- `K::Union{Int,Float64}`: Average degree.
+
+Returns:
+- `J`: Sampled random variable J.
+- `J_prime`: Sampled random variable J'.
+"""
+function sample_couplings(rng, m::Float64, sigma2::Float64, gamma::Float64, K::Union{Int,Float64})
     u, v = randn(rng, 2)
     J = m/K + sqrt(sigma2/K)*u
     J_prime = m/K + sqrt(sigma2/K)*(gamma*u + sqrt(1-gamma^2)*v)
     return J, J_prime
 end
 
+# Function to sample a degree from a degree distribution
+"""
+    sample_degree(rng::AbstractRNG, p_k::PdfDegVec)
+
+Samples a degree from a degree distribution.
+
+Arguments:
+- `rng::AbstractRNG`: Random number generator.
+- `p_k::PdfDegVec`: Degree distribution structure.
+
+Returns:
+- `k`: Sampled degree.
+"""
 function sample_degree(rng::AbstractRNG, p_k::PdfDegVec)
     if length(p_k.pdf) == 1
         return p_k.deg[1]
@@ -33,6 +122,19 @@ function sample_degree(rng::AbstractRNG, p_k::PdfDegVec)
     end
 end
 
+# Function to sample neighbors
+"""
+    sample_neighs!(rng::AbstractRNG, neigh_idxs::Vector{Int}, i::Int, k::Int, P::Int)
+
+Samples k neighbors indices from a population of P nodes.
+
+Arguments:
+- `rng::AbstractRNG`: Random number generator.
+- `neigh_idxs::Vector{Int}`: Vector to store the sampled neighbors.
+- `i::Int`: Index of the node.
+- `k::Int`: Number of neighbors to sample.
+- `P::Int`: Number of nodes in the population.
+"""
 function sample_neighs!(rng::AbstractRNG, neigh_idxs::Vector{Int}, i::Int, k::Int, P::Int)
     for j in 1:k
         check = true
@@ -58,15 +160,16 @@ function testvalues(mu::Float64, q::Float64, chi::Float64, sum_q::Float64, sum_c
 end
 
 
-function error_func(check_vars::Dict{String, Float64}, mu_population::Vector{Float64}, q_population::Vector{Float64}, chi_population::Vector{Float64})
+function error_func(check_vars::Dict{String, Float64}, mu_pop::Vector{Float64}, q_pop::Vector{Float64}, chi_pop::Vector{Float64}, tol::Dict{String, Float64})
     # Calculate new averages for convergence checking
-    new_avg_mu = mean(mu_population)
+    new_avg_mu = mean(mu_pop)
 
     # Calculate the maximum change in the updates for convergence checking
-    max_diff = abs(check_vars["avg_mu"] - new_avg_mu)
+    max_diff_avg = abs(check_vars["avg_mu"] - new_avg_mu)
+
     check_vars["avg_mu"] = new_avg_mu
 
-    return max_diff
+    return (max_diff_avg < tol["avg"])
 end
 
 
@@ -85,10 +188,10 @@ end
 Simulates the Generalized Lotka-Volterra system on sparse networks.
 
 Arguments:
-- J: Sparse interaction matrix (NxN), where J[i,j] is the interaction strength from species j to species i.
-- x0: Initial abundances (Vector of size N).
-- tmax: End time for the simulation.
-- tsave: Vector of times for saving trajectories.
+- `J::SparseMatrixCSC{Float64, Int}`: Sparse interaction matrix (NxN), where J[i,j] is the interaction strength from species j to species i.
+- `x0::Vector{Float64}`: Initial abundances (Vector of size N).
+- `tmax::Float64`: End time for the simulation.
+- `tsave::Vector{Float64}`: Vector of times for saving trajectories.
 
 Returns:
 - t_vals: Time points where trajectories are saved.
@@ -122,10 +225,10 @@ end
 Simulates the Generalized Lotka-Volterra system on fully connected networks.
 
 Arguments:
-- J: Fully connected nteraction matrix (NxN), where J[i,j] is the interaction strength from species j to species i.
-- x0: Initial abundances (Vector of size N).
-- tmax: End time for the simulation.
-- tsave: Vector of times for saving trajectories.
+- `J::Matrix{Float64}`: Fully connected interaction matrix (NxN), where J[i,j] is the interaction strength from species j to species i.
+- `x0::Vector{Float64}`: Initial abundances (Vector of size N).
+- `tmax::Float64`: End time for the simulation.
+- `tsave::Vector{Float64}`: Vector of times for saving trajectories.
 
 Returns:
 - t_vals: Time points where trajectories are saved.
@@ -160,15 +263,15 @@ end
 Simulates the Generalized Lotka-Volterra system for sparse networks. It sets to zero the abundances that are below a certain threshold.
 
 Arguments:
-- J: Sparse interaction matrix (NxN), where J[i,j] is the interaction strength from species j to species i.
-- x0: Initial abundances (Vector of size N).
-- tmax: End time for the simulation.
-- tsave: Vector of times for saving trajectories.
-- zero_threshold: Threshold below which abundances are set to zero.
+- `J::SparseMatrixCSC{Float64, Int}`: Sparse interaction matrix (NxN), where J[i,j] is the interaction strength from species j to species i.
+- `x0::Vector{Float64}`: Initial abundances (Vector of size N).
+- `tmax::Float64`: End time for the simulation.
+- `tsave::Vector{Float64}`: Vector of times for saving trajectories.
+- `zero_threshold::Float64`: Threshold below which abundances are set to zero.
 
 Returns:
 - t_vals: Time points where trajectories are saved.
-- trajectories: Matrix of size (N x length(t_vals)) storing species abundances.
+- trajectories: Matrix of size (N x length(t_vals)) storing species abundances.x
 """
 function sample_glv(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64}, zero_threshold::Float64)
             
@@ -200,11 +303,11 @@ end
 Simulates the Generalized Lotka-Volterra system for fully connected networks. It sets to zero the abundances that are below a certain threshold.
 
 Arguments:
-- J: Fully connected interaction matrix (NxN), where J[i,j] is the interaction strength from species j to species i.
-- x0: Initial abundances (Vector of size N).
-- tmax: End time for the simulation.
-- tsave: Vector of times for saving trajectories.
-- zero_threshold: Threshold below which abundances are set to zero.
+- `J::Matrix{Float64}`: Fully connected interaction matrix (NxN), where J[i,j] is the interaction strength from species j to species i.
+- `x0::Vector{Float64}`: Initial abundances (Vector of size N).
+- `tmax::Float64`: End time for the simulation.
+- `tsave::Vector{Float64}`: Vector of times for saving trajectories.
+- `zero_threshold::Float64`: Threshold below which abundances are set to zero.
 
 Returns:
 - t_vals: Time points where trajectories are saved.
@@ -235,28 +338,31 @@ end
 
 
 """
-    sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::PdfDegVec, mu_pop::Vector{Float64}, q_pop::Vector{Float64}, chi_pop::Vector{Float64}, nsim::Int, P::Int, rng::AbstractRNG,zero_threshold::Float64)
+    sample_x(m::Float64, sigma2::Float64, gamma::Float64, p_k::PdfDegVec, mu_pop::Vector{Float64}, q_pop::Vector{Float64}, chi_pop::Vector{Float64}, nsim::Int; rng::AbstractRNG=Xoshiro(1234), zero_threshold::Float64=0.0)
 
-Samples nsim fixed-point abundances of a random Generalized Lotka-Volterra system with correlated gaussian random interactions and degree distribution p_k. It uses the populations of the mean abundances, mean squared abundances and susceptibilities obtained from the population dynamics algorithm.
+Samples the abundances of a population of nodes in a network with correlated Gaussian couplings.
 
 Arguments:
-- m: Mean of the Gaussian distribution of the interactions.
-- sigma2: Variance of the Gaussian distribution of the interactions.
-- gamma: Correlation between the two interaction parameters Jᵢⱼ and Jⱼᵢ.
-- K: Number of neighbors.
-- p_k: Degree distribution. Vector of type PdfDegVec the probability of having k neighbors (p_k.pdf) with k ∈ p_k.deg.
-- mu_pop: Vector of size P with the population of the mean abundances. It is obtained from the population dynamics algorithm.
-- q_pop: Vector of size P with the population of the mean squared abundances. It is obtained from the population dynamics algorithm.
-- chi_pop: Vector of size P with the population of the susceptibilities. It is obtained from the population dynamics algorithm.
-- nsim: Number of simulations per element of the population.
-- P: Size of the population in the population dynamics algorithm.
-- rng: Random number generator.
-- zero_threshold: Threshold below which abundances are set to zero.
+- `m::Float64`: Mean of the Gaussian distribution.
+- `sigma2::Float64`: Variance of the Gaussian distribution.
+- `gamma::Float64`: Correlation coefficient between J and J'.
+- `p_k::PdfDegVec`: Degree distribution of the network.
+- `mu_pop::Vector{Float64}`: Mean abundance for each node.
+- `q_pop::Vector{Float64}`: Variance of abundances for each node.
+- `chi_pop::Vector{Float64}`: Correlation of abundances for each node.
+- `nsim::Int`: Number of simulations to run.
+
+Keyword Arguments:
+- `rng::AbstractRNG`: Random number generator (default Xoshiro(1234)).
+- `zero_threshold::Float64`: Threshold below which abundances are set to zero (default 0.0).
 
 Returns:
-- xvec: Vector of size nsim*P with the fixed-point abundances.
+- `xvec`: Vector of sampled abundances.
 """
-function sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::PdfDegVec, mu_pop::Vector{Float64}, q_pop::Vector{Float64}, chi_pop::Vector{Float64}, nsim::Int, P::Int, rng::AbstractRNG, zero_threshold::Float64)
+function sample_x(m::Float64, sigma2::Float64, gamma::Float64, p_k::PdfDegVec, mu_pop::Vector{Float64}, q_pop::Vector{Float64}, chi_pop::Vector{Float64}, nsim::Int; rng::AbstractRNG=Xoshiro(1234), zero_threshold::Float64=0.0)
+    @assert length(mu_pop) == length(q_pop) == length(chi_pop) "Population vectors must have the same length." 
+    K = p_k.K
+    P = length(mu_pop)
     xvec = zeros(nsim * P)
     neigh_idxs = zeros(Int, p_k.kmax)
     for i in 1:P
@@ -284,29 +390,30 @@ function sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::PdfD
 end
 
 """
-    sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::PdfDegVec, mu_avg::Float64, q_avg::Float64, chi_avg::Float64, nsim::Int, P::Int, rng::AbstractRNG, zero_threshold::Float64)
+    sample_x(m::Float64, sigma2::Float64, gamma::Float64, p_k::PdfDegVec, mu_avg::Float64, q_avg::Float64, chi_avg::Float64, nsim::Int; rng::AbstractRNG=Xoshiro(1234), zero_threshold::Float64=0.0)
 
-Samples nsim fixed-point abundances of a random Generalized Lotka-Volterra system with correlated gaussian random interactions and degree distribution p_k. It uses the averages of the populations of the mean abundances, mean squared abundances and susceptibilities obtained from the population dynamics algorithm.
+Samples the abundances of a population of nodes in a network with correlated Gaussian couplings.
 
 Arguments:
-- m: Mean of the Gaussian distribution of the interactions.
-- sigma2: Variance of the Gaussian distribution of the interactions.
-- gamma: Correlation between the two interaction parameters Jᵢⱼ and Jⱼᵢ.
-- K: Number of neighbors.
-- p_k: Degree distribution. Vector of type PdfDegVec the probability of having k neighbors (p_k.pdf) with k ∈ p_k.deg.
-- mu_avg: Average of the population of the mean abundances. It is obtained from the population dynamics algorithm.
-- q_pop: Average of the population of the mean squared abundances. It is obtained from the population dynamics algorithm.
-- chi_pop: Average of the population of the susceptibilities. It is obtained from the population dynamics algorithm.
-- nsim: Number of simulations per element of the population.
-- P: Size of the population in the population dynamics algorithm.
-- rng: Random number generator.
-- zero_threshold: Threshold below which abundances are set to zero.
+- `m::Float64`: Mean of the Gaussian distribution.
+- `sigma2::Float64`: Variance of the Gaussian distribution.
+- `gamma::Float64`: Correlation coefficient between J and J'.
+- `p_k::PdfDegVec`: Degree distribution of the network.
+- `mu_avg::Float64`: Mean abundance for each node.
+- `q_avg::Float64`: Variance of abundances for each node.
+- `chi_avg::Float64`: Correlation of abundances for each node.
+- `nsim::Int`: Number of simulations to run.
+
+Keyword Arguments:
+- `rng::AbstractRNG`: Random number generator (default Xoshiro(1234)).
+- `zero_threshold::Float64`: Threshold below which abundances are set to zero (default 0.0).
 
 Returns:
-- xvec: Vector of size nsim*P with the fixed-point abundances.
+- `xvec`: Vector of sampled abundances.
 """
-function sample_x(m::Float64, sigma2::Float64, gamma::Float64, K::Int, p_k::PdfDegVec, mu_avg::Float64, q_avg::Float64, chi_avg::Float64, nsim::Int, P::Int, rng::AbstractRNG, zero_threshold::Float64)
-    xvec = zeros(nsim * P)
+function sample_x(m::Float64, sigma2::Float64, gamma::Float64, p_k::PdfDegVec, mu_avg::Float64, q_avg::Float64, chi_avg::Float64, nsim::Int; rng::AbstractRNG=Xoshiro(1234), zero_threshold::Float64=0.0)
+    K = p_k.K
+    xvec = zeros(nsim)
     for i in 1:P
         for isim in 1:nsim
             k = sample_degree(rng, p_k)
