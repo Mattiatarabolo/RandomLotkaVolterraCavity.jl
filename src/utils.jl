@@ -177,23 +177,21 @@ end
 
 # Define the Random-Lotka-Volterra system of equations
 function glv!(du, u, p, t)  # p = (J, zero_threshold)
-    J = p
-    mul!(du, J, u)
+    mul!(du, p, u)
     du .= u .* (1 .- u .+ du)
 end
 
 function glv_jac!(Jac, u, p, t)
-    J = p
     @inbounds for i in 1:length(u)
         @inbounds for j in 1:length(u)
             if i == j
                 summed = 0.0
                 for k in 1:length(u)
-                    summed += J[i, k] * u[k]
+                    summed += p[i, k] * u[k]
                 end
                 Jac[i, i] = 1 - 2 * u[i] + summed
             else
-                Jac[i, j] = J[i, j] * u[i]
+                Jac[i, j] = p[i, j] * u[i]
             end
         end
     end
