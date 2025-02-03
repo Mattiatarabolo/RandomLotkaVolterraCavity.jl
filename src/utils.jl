@@ -182,6 +182,24 @@ function glv!(du, u, p, t)  # p = (J, zero_threshold)
     du .= u .* (1 .- u .+ du)
 end
 
+function glv_jac!(Jac, u, p, t)
+    J = p
+    @inbounds for i in 1:length(u)
+        @inbounds for j in 1:length(u)
+            if i == j
+                summed = 0.0
+                for k in 1:length(u)
+                    summed += J[i, k] * u[k]
+                end
+                Jac[i, i] = 1 - 2 * u[i] + summed
+            else
+                Jac[i, j] = J[i, j] * u[i]
+            end
+        end
+    end
+end
+
+
 """
     sample_glv(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64})
 
@@ -207,10 +225,11 @@ function sample_glv(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax:
     # Problem setup
     tspan = (0.0, tmax)
     p = J
-    prob = ODEProblem(glv!, x0, tspan, p)
+    f! = ODEFunction(glv!, jac_prototype=deepcopy(J), jac=glv_jac!)
+    prob = ODEProblem(f!, x0, tspan, p)
 
     # Solver options
-    sol = solve(prob, Tsit5(), reltol=1e-8, abstol=1e-8, saveat=tsave)
+    sol = solve(prob, AutoTsit5(Rosenbrock23()), saveat=tsave)
 
     # Extract the time points and trajectories
     t_vals = sol.t
@@ -244,10 +263,11 @@ function sample_glv(J::Matrix{Float64}, x0::Vector{Float64}, tmax::Float64, tsav
     # Problem setup
     tspan = (0.0, tmax)
     p = J
-    prob = ODEProblem(glv!, x0, tspan, p)
+    f! = ODEFunction(glv!, jac_prototype=deepcopy(J), jac=glv_jac!)
+    prob = ODEProblem(f!, x0, tspan, p)
 
     # Solver options
-    sol = solve(prob, Tsit5(), reltol=1e-8, abstol=1e-8, saveat=tsave)
+    sol = solve(prob, AutoTsit5(Rosenbrock23()), saveat=tsave)
 
     # Extract the time points and trajectories
     t_vals = sol.t
@@ -283,10 +303,11 @@ function sample_glv(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax:
     # Problem setup
     tspan = (0.0, tmax)
     p = J
-    prob = ODEProblem(glv!, x0, tspan, p)
+    f! = ODEFunction(glv!, jac_prototype=deepcopy(J), jac=glv_jac!)
+    prob = ODEProblem(f!, x0, tspan, p)
 
     # Solver options
-    sol = solve(prob, Tsit5(), reltol=1e-8, abstol=1e-8, saveat=tsave)
+    sol = solve(prob, AutoTsit5(Rosenbrock23()), saveat=tsave)
 
     # Extract the time points and trajectories
     t_vals = sol.t
@@ -323,10 +344,11 @@ function sample_glv(J::Matrix{Float64}, x0::Vector{Float64}, tmax::Float64, tsav
     # Problem setup
     tspan = (0.0, tmax)
     p = J
-    prob = ODEProblem(glv!, x0, tspan, p)
+    f! = ODEFunction(glv!, jac_prototype=deepcopy(J), jac=glv_jac!)
+    prob = ODEProblem(f!, x0, tspan, p)
 
     # Solver options
-    sol = solve(prob, Tsit5(), reltol=1e-8, abstol=1e-8, saveat=tsave)
+    sol = solve(prob, AutoTsit5(Rosenbrock23()), saveat=tsave)
 
     # Extract the time points and trajectories
     t_vals = sol.t
