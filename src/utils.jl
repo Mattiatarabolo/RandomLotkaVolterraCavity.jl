@@ -225,7 +225,11 @@ function sample_glv(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax:
     # Problem setup
     tspan = (0.0, tmax)
     p = J
-    f! = ODEFunction(glv!, jac_prototype=deepcopy(J), jac=glv_jac!)
+    Jac = deepcopy(J)
+    for i in 1:N
+        Jac[i, i] = 1.0
+    end
+    f! = ODEFunction(glv!, jac_prototype=Jac, jac=glv_jac!)
     prob = ODEProblem(f!, x0, tspan, p)
 
     # Solver options
@@ -262,8 +266,11 @@ function sample_glv(J::Matrix{Float64}, x0::Vector{Float64}, tmax::Float64, tsav
 
     # Problem setup
     tspan = (0.0, tmax)
-    p = J
-    f! = ODEFunction(glv!, jac_prototype=deepcopy(J), jac=glv_jac!)
+    Jac = deepcopy(J)
+    for i in 1:N
+        Jac[i, i] = 1.0
+    end
+    f! = ODEFunction(glv!, jac_prototype=Jac, jac=glv_jac!)
     prob = ODEProblem(f!, x0, tspan, p)
 
     # Solver options
@@ -302,8 +309,11 @@ function sample_glv(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax:
 
     # Problem setup
     tspan = (0.0, tmax)
-    p = J
-    f! = ODEFunction(glv!, jac_prototype=deepcopy(J), jac=glv_jac!)
+    Jac = deepcopy(J)
+    for i in 1:N
+        Jac[i, i] = 1.0
+    end
+    f! = ODEFunction(glv!, jac_prototype=Jac, jac=glv_jac!)
     prob = ODEProblem(f!, x0, tspan, p)
 
     # Solver options
@@ -343,8 +353,11 @@ function sample_glv(J::Matrix{Float64}, x0::Vector{Float64}, tmax::Float64, tsav
 
     # Problem setup
     tspan = (0.0, tmax)
-    p = J
-    f! = ODEFunction(glv!, jac_prototype=deepcopy(J), jac=glv_jac!)
+    Jac = deepcopy(J)
+    for i in 1:N
+        Jac[i, i] = 1.0
+    end
+    f! = ODEFunction(glv!, jac_prototype=Jac, jac=glv_jac!)
     prob = ODEProblem(f!, x0, tspan, p)
 
     # Solver options
