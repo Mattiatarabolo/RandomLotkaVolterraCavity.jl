@@ -182,16 +182,18 @@ function glv!(du, u, p, t)  # p = (J, zero_threshold)
 end
 
 function glv_jac!(Jac, u, p, t)
-    @inbounds for i in 1:length(u)
-        @inbounds for j in 1:length(u)
-            if i == j
-                summed = 0.0
-                for k in 1:length(u)
-                    summed += p[i, k] * u[k]
-                end
-                Jac[i, i] = 1 - 2 * u[i] + summed
+    N = length(u)
+    @inbounds for col in 1:N   # Iterate over columns
+        @inbounds for idx in nzrange(Jac, col)  # Get index range for this column
+            row = Jac.rowval[idx]  # Get row index
+            if row != col
+                Jac[row,col] = p[row,col] * u[row]
             else
-                Jac[i, j] = p[i, j] * u[i]
+                summed = 0.0
+                @inbounds for k in 1:N
+                    summed += p[row,k] * u[k]
+                end
+                Jac[row,row] = 1 - 2 * u[row] + summed
             end
         end
     end
