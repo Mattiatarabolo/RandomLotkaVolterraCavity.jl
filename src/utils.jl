@@ -201,7 +201,7 @@ end
 
 
 """
-    sample_glv(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64})
+    sample_glv(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64}; diverging_threshold=1e6)
 
 Simulates the Generalized Lotka-Volterra system on sparse networks.
 
@@ -211,11 +211,14 @@ Arguments:
 - `tmax::Float64`: End time for the simulation.
 - `tsave::Vector{Float64}`: Vector of times for saving trajectories.
 
+Optional arguments:
+- `diverging_threshold::Float64`: Threshold for diverging solutions (default 1e6).
+
 Returns:
 - t_vals: Time points where trajectories are saved.
 - trajectories: Matrix of size (N x length(t_vals)) storing species abundances.
 """
-function sample_glv(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64})
+function sample_glv(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64}; diverging_threshold=1e6)
             
     # Ensure the initial condition has the correct size
     @assert size(J, 1) == size(J, 2) "Interaction matrix J must be square."
@@ -233,7 +236,11 @@ function sample_glv(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax:
     prob = ODEProblem(f!, x0, tspan, p)
 
     # Solver options
-    sol = solve(prob, AutoTsit5(Rosenbrock23()), saveat=tsave)
+    isunstable(dt,u,p,t) = any(x->x>diverging_threshold, u)
+    sol = solve(prob, AutoTsit5(Rosenbrock23()); saveat=tsave, unstable_check=isunstable)
+    if sol.retcode == ReturnCode.Unstable
+        throw(error("Diverging solution"))
+    end
 
     # Extract the time points and trajectories
     t_vals = sol.t
@@ -243,7 +250,7 @@ function sample_glv(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax:
 end
 
 """
-    sample_glv(J::Matrix{Float64}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64})
+    sample_glv(J::Matrix{Float64}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64}; diverging_threshold=1e6)
 
 Simulates the Generalized Lotka-Volterra system on fully connected networks.
 
@@ -253,11 +260,14 @@ Arguments:
 - `tmax::Float64`: End time for the simulation.
 - `tsave::Vector{Float64}`: Vector of times for saving trajectories.
 
+Optional arguments:
+- `diverging_threshold::Float64`: Threshold for diverging solutions (default 1e6).
+
 Returns:
 - t_vals: Time points where trajectories are saved.
 - trajectories: Matrix of size (N x length(t_vals)) storing species abundances.
 """
-function sample_glv(J::Matrix{Float64}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64})
+function sample_glv(J::Matrix{Float64}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64}; diverging_threshold=1e6)
             
     # Ensure the initial condition has the correct size
     @assert size(J, 1) == size(J, 2) "Interaction matrix J must be square."
@@ -273,8 +283,12 @@ function sample_glv(J::Matrix{Float64}, x0::Vector{Float64}, tmax::Float64, tsav
     f! = ODEFunction(glv!, jac_prototype=Jac, jac=glv_jac!)
     prob = ODEProblem(f!, x0, tspan, p)
 
-    # Solver options
-    sol = solve(prob, AutoTsit5(Rosenbrock23()), saveat=tsave)
+   # Solver options
+    isunstable(dt,u,p,t) = any(x->x>diverging_threshold, u)
+    sol = solve(prob, AutoTsit5(Rosenbrock23()); saveat=tsave, unstable_check=isunstable)
+    if sol.retcode == ReturnCode.Unstable
+        throw(error("Diverging solution"))
+    end
 
     # Extract the time points and trajectories
     t_vals = sol.t
@@ -285,7 +299,7 @@ end
 
 
 """
-    sample_glv(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64}, zero_threshold::Float64)
+    sample_glv(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64}, zero_threshold::Float64; diverging_threshold=1e6)
 
 Simulates the Generalized Lotka-Volterra system for sparse networks. It sets to zero the abundances that are below a certain threshold.
 
@@ -296,11 +310,14 @@ Arguments:
 - `tsave::Vector{Float64}`: Vector of times for saving trajectories.
 - `zero_threshold::Float64`: Threshold below which abundances are set to zero.
 
+Optional arguments:
+- `diverging_threshold::Float64`: Threshold for diverging solutions (default 1e6).
+
 Returns:
 - t_vals: Time points where trajectories are saved.
 - trajectories: Matrix of size (N x length(t_vals)) storing species abundances.x
 """
-function sample_glv(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64}, zero_threshold::Float64)
+function sample_glv(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64}, zero_threshold::Float64; diverging_threshold=1e6)
             
     # Ensure the initial condition has the correct size
     @assert size(J, 1) == size(J, 2) "Interaction matrix J must be square."
@@ -316,8 +333,12 @@ function sample_glv(J::SparseMatrixCSC{Float64, Int}, x0::Vector{Float64}, tmax:
     f! = ODEFunction(glv!, jac_prototype=Jac, jac=glv_jac!)
     prob = ODEProblem(f!, x0, tspan, p)
 
-    # Solver options
-    sol = solve(prob, AutoTsit5(Rosenbrock23()), saveat=tsave)
+   # Solver options
+   isunstable(dt,u,p,t) = any(x->x>diverging_threshold, u)
+   sol = solve(prob, AutoTsit5(Rosenbrock23()); saveat=tsave, unstable_check=isunstable)
+   if sol.retcode == ReturnCode.Unstable
+       throw(error("Diverging solution"))
+   end
 
     # Extract the time points and trajectories
     t_vals = sol.t
@@ -329,7 +350,7 @@ end
 
 
 """
-    sample_glv(J::Matrix{Float64}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64}, zero_threshold::Float64)
+    sample_glv(J::Matrix{Float64}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64}, zero_threshold::Float64; diverging_threshold=1e6)
 
 Simulates the Generalized Lotka-Volterra system for fully connected networks. It sets to zero the abundances that are below a certain threshold.
 
@@ -340,11 +361,14 @@ Arguments:
 - `tsave::Vector{Float64}`: Vector of times for saving trajectories.
 - `zero_threshold::Float64`: Threshold below which abundances are set to zero.
 
+Optional arguments:
+- `diverging_threshold::Float64`: Threshold for diverging solutions (default 1e6).
+
 Returns:
 - t_vals: Time points where trajectories are saved.
 - trajectories: Matrix of size (N x length(t_vals)) storing species abundances.
 """
-function sample_glv(J::Matrix{Float64}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64}, zero_threshold::Float64)
+function sample_glv(J::Matrix{Float64}, x0::Vector{Float64}, tmax::Float64, tsave::Vector{Float64}, zero_threshold::Float64; diverging_threshold=1e6)
             
     # Ensure the initial condition has the correct size
     @assert size(J, 1) == size(J, 2) "Interaction matrix J must be square."
@@ -360,8 +384,12 @@ function sample_glv(J::Matrix{Float64}, x0::Vector{Float64}, tmax::Float64, tsav
     f! = ODEFunction(glv!, jac_prototype=Jac, jac=glv_jac!)
     prob = ODEProblem(f!, x0, tspan, p)
 
-    # Solver options
-    sol = solve(prob, AutoTsit5(Rosenbrock23()), saveat=tsave)
+   # Solver options
+   isunstable(dt,u,p,t) = any(x->x>diverging_threshold, u)
+   sol = solve(prob, AutoTsit5(Rosenbrock23()); saveat=tsave, unstable_check=isunstable)
+   if sol.retcode == ReturnCode.Unstable
+       throw(error("Diverging solution"))
+   end
 
     # Extract the time points and trajectories
     t_vals = sol.t
