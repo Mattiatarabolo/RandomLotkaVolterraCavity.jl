@@ -56,7 +56,7 @@ end
 ########################################################## Sparse graph ###########################################################################
 ####################################################################################################################################################
 
-function update_cav!(p_cav_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, gamma::Float64, K::Union{Int,Float64}, rng::AbstractRNG, mu_cav_pop::Vector{Float64}, q_cav_pop::Vector{Float64}, chi_cav_pop::Vector{Float64}, J_pop::Vector{Float64}, Jp_pop::Vector{Float64}, neigh_idxs::Vector{Int})
+function update_cav!(p_cav_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, gamma::Float64, K::Union{Int,Float64}, rng::AbstractRNG, mu_cav_pop::Vector{Float64}, q_cav_pop::Vector{Float64}, chi_cav_pop::Vector{Float64}, J_pop::Vector{Float64}, Jp_pop::Vector{Float64}, neigh_idxs::Vector{Int}, damp::Float64)
     # Update each site in the population
     @inbounds for i in shuffle(rng, 1:P)
         # Sample the degree k
@@ -82,9 +82,9 @@ function update_cav!(p_cav_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, ga
 
         # Compute the new values for mu, q, chi using the update functions
         sum_q_cav, sum_chi_cav, Eps, Delta = sumpop(mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, neigh_idxs, k_cav)
-        mu_cav_pop[i] = f_mu(sum_chi_cav, Eps, Delta)
-        q_cav_pop[i] = f_q(sum_q_cav, sum_chi_cav, Delta)
-        chi_cav_pop[i] = f_chi(sum_chi_cav, Delta)
+        mu_cav_pop[i] = (1-damp)*f_mu(sum_chi_cav, Eps, Delta) + damp*mu_cav_pop[i]
+        q_cav_pop[i] = (1-damp)*f_q(sum_q_cav, sum_chi_cav, Delta) + damp*q_cav_pop[i]
+        chi_cav_pop[i] = (1-damp)*f_chi(sum_chi_cav, Delta) + damp*chi_cav_pop[i]
         testvalues(mu_cav_pop[i], q_cav_pop[i], chi_cav_pop[i], sum_q_cav, sum_chi_cav, Delta)
     end
 end
@@ -133,7 +133,8 @@ end
         check_conv::Int = 30, 
         rng::AbstractRNG = Xoshiro(1234), 
         verbose::Bool = false,
-        plothist::Bool = false
+        plothist::Bool = false,
+        damp::Float64 = 0.0
     )
 
 Run the population dynamics algorithm for the fixed point abundances of theRandom Lotka Volterra model on a sparse graph.
@@ -155,6 +156,7 @@ Run the population dynamics algorithm for the fixed point abundances of theRando
 - `rng::AbstractRNG`: random number generator (default Xoshiro(1234)).
 - `verbose::Bool`: print information about the convergence of the algorithm (default false).
 - `plothist::Bool`: plot histograms of the populations at each check_conv iterations (default false).
+- `damp::Float64`: damping factor for the update of the populations (default 0.0).
 
 # Returns
 - `mu_pop`: vector with the fixed point values of the variable mu.
@@ -179,7 +181,8 @@ function population_dynamics(
     check_conv::Int = 30, 
     rng::AbstractRNG = Xoshiro(1234), 
     verbose::Bool = false,
-    plothist::Bool = false)
+    plothist::Bool = false,
+    damp::Float64 = 0.0)
 
     K = p_k.K
 
@@ -209,7 +212,7 @@ function population_dynamics(
     # Loop over iterations until convergence or max_iter is reached
     @inbounds @showprogress for t in 1:max_iter
 
-        update_cav!(p_cav_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, neigh_idxs)
+        update_cav!(p_cav_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, neigh_idxs, damp)
 
         converged = error_func(check_vars, mu_cav_pop, q_cav_pop, chi_cav_pop, tol)
 
@@ -303,7 +306,8 @@ end
         p_cav_k::PdfDegVec,
         max_iter::Int;
         saveat::Union{Int, Vector{Int}} = 0,
-        rng::AbstractRNG = Xoshiro(1234)
+        rng::AbstractRNG = Xoshiro(1234),
+        damp::Float64 = 0.0
     )
 
 Run the population dynamics algorithm for the fixed point abundances of the Random Lotka Volterra model on a sparse graph. It starts from already computed cavity populations, and iterate the population dynamics algorithm max_iter times saving both the cavity and full populations at the iterations specified by saveat.
@@ -322,6 +326,7 @@ Run the population dynamics algorithm for the fixed point abundances of the Rand
 # Optional arguments
 - `saveat::Union{Int, Vector{Int}}`: iteration numbers to save the populations (default 0). If it is an integer, it saves the populations every saveat iterations. If it is a vector, it saves the populations at the iterations specified by saveat.
 - `rng::AbstractRNG`: random number generator (default Xoshiro(1234)).
+- `damp::Float64`: damping factor for the update of the populations (default 0.0).
 
 # Returns
 - `mu_pop_vec`: matrix with the fixed point values of the variable mu at the iterations specified by saveat.
@@ -342,7 +347,8 @@ function population_dynamics!(
     p_cav_k::PdfDegVec,
     max_iter::Int;
     saveat::Union{Int, Vector{Int}} = 0,
-    rng::AbstractRNG = Xoshiro(1234))
+    rng::AbstractRNG = Xoshiro(1234),
+    damp::Float64 = 0.0)
 
     if saveat == 0
         saveat = max_iter
@@ -378,7 +384,7 @@ function population_dynamics!(
     idx = 1
     @inbounds @showprogress for t in 1:max_iter
 
-        update_cav!(p_cav_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, neigh_idxs)
+        update_cav!(p_cav_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, neigh_idxs, damp)
 
         if t in saveat
             mu_cav_pop_vec[:, idx] .= mu_cav_pop
@@ -397,10 +403,11 @@ end
 
 
 
-
+#################################################
 ######## Test with pre-sampled couplings ########
+#################################################
 
-function update_cav_t!(p_cav_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, gamma::Float64, K::Union{Int,Float64}, rng::AbstractRNG, mu_cav_pop::Vector{Float64}, q_cav_pop::Vector{Float64}, chi_cav_pop::Vector{Float64}, J_pop::Vector{Float64}, Jp_pop::Vector{Float64}, neigh_idxs::Vector{Int})
+function update_cav_t!(p_cav_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, gamma::Float64, K::Union{Int,Float64}, rng::AbstractRNG, mu_cav_pop::Vector{Float64}, q_cav_pop::Vector{Float64}, chi_cav_pop::Vector{Float64}, J_pop::Vector{Float64}, Jp_pop::Vector{Float64}, neigh_idxs::Vector{Int}, damp::Float64)
     # Update each site in the population
     @inbounds for i in shuffle(rng, 1:P)
         # Sample the degree k
@@ -418,9 +425,9 @@ function update_cav_t!(p_cav_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, 
 
         # Compute the new values for mu, q, chi using the update functions
         sum_q_cav, sum_chi_cav, Eps, Delta = sumpop(mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, neigh_idxs, k_cav)
-        mu_cav_pop[i] = f_mu(sum_chi_cav, Eps, Delta)
-        q_cav_pop[i] = f_q(sum_q_cav, sum_chi_cav, Delta)
-        chi_cav_pop[i] = f_chi(sum_chi_cav, Delta)
+        mu_cav_pop[i] = (1-damp)*f_mu(sum_chi_cav, Eps, Delta) + damp*mu_cav_pop[i]
+        q_cav_pop[i] = (1-damp)*f_q(sum_q_cav, sum_chi_cav, Delta) + damp*q_cav_pop[i]
+        chi_cav_pop[i] = (1-damp)*f_chi(sum_chi_cav, Delta) + damp*chi_cav_pop[i]
         testvalues(mu_cav_pop[i], q_cav_pop[i], chi_cav_pop[i], sum_q_cav, sum_chi_cav, Delta)
     end
 end
@@ -441,9 +448,9 @@ function update_full_t!(p_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, gam
 
         # Compute the new values for mu, q, chi using the update functions
         sum_q_full, sum_chi_full, Eps_full, Delta_full = sumpop(mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, neigh_idxs, k_full)
-        mu_pop[i] = f_mu(sum_chi_full, Eps_full, Delta_full)
-        q_pop[i] = f_q(sum_q_full, sum_chi_full, Delta_full)
-        chi_pop[i] = f_chi(sum_chi_full, Delta_full)
+        mu_cav_pop[i] = f_mu(sum_chi_cav, Eps, Delta)
+        q_cav_pop[i] = f_q(sum_q_cav, sum_chi_cav, Delta)
+        chi_cav_pop[i] = f_chi(sum_chi_cav, Delta)
         testvalues(mu_pop[i], q_pop[i], chi_pop[i], sum_q_full, sum_chi_full, Delta_full) 
     end
 end
@@ -464,7 +471,8 @@ end
         check_conv::Int = 30, 
         rng::AbstractRNG = Xoshiro(1234), 
         verbose::Bool = false,
-        plothist::Bool = false
+        plothist::Bool = false,
+        damp::Float64 = 0.0
     )
 
 Run the population dynamics algorithm for the fixed point abundances of theRandom Lotka Volterra model on a sparse graph.
@@ -486,6 +494,7 @@ Run the population dynamics algorithm for the fixed point abundances of theRando
 - `rng::AbstractRNG`: random number generator (default Xoshiro(1234)).
 - `verbose::Bool`: print information about the convergence of the algorithm (default false).
 - `plothist::Bool`: plot histograms of the populations at each check_conv iterations (default false).
+- `damp::Float64`: damping factor for the update of the populations (default 0.0).
 
 # Returns
 - `mu_pop`: vector with the fixed point values of the variable mu.
@@ -510,7 +519,8 @@ function population_dynamics_t(
     check_conv::Int = 30, 
     rng::AbstractRNG = Xoshiro(1234), 
     verbose::Bool = false,
-    plothist::Bool = false)
+    plothist::Bool = false,
+    damp::Float64 = 0.0)
 
     K = p_k.K
 
@@ -543,7 +553,7 @@ function population_dynamics_t(
     # Loop over iterations until convergence or max_iter is reached
     @inbounds @showprogress for t in 1:max_iter
 
-        update_cav_t!(p_cav_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, neigh_idxs)
+        update_cav_t!(p_cav_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, neigh_idxs, damp)
 
         converged = error_func(check_vars, mu_cav_pop, q_cav_pop, chi_cav_pop, tol)
 
@@ -637,7 +647,8 @@ end
         p_cav_k::PdfDegVec,
         max_iter::Int;
         saveat::Union{Int, Vector{Int}} = 0,
-        rng::AbstractRNG = Xoshiro(1234)
+        rng::AbstractRNG = Xoshiro(1234),
+        damp::Float64 = 0.0
     )
 
 Run the population dynamics algorithm for the fixed point abundances of the Random Lotka Volterra model on a sparse graph. It starts from already computed cavity populations, and iterate the population dynamics algorithm max_iter times saving both the cavity and full populations at the iterations specified by saveat.
@@ -656,6 +667,7 @@ Run the population dynamics algorithm for the fixed point abundances of the Rand
 # Optional arguments
 - `saveat::Union{Int, Vector{Int}}`: iteration numbers to save the populations (default 0). If it is an integer, it saves the populations every saveat iterations. If it is a vector, it saves the populations at the iterations specified by saveat.
 - `rng::AbstractRNG`: random number generator (default Xoshiro(1234)).
+- `damp::Float64`: damping factor for the update of the populations (default 0.0).
 
 # Returns
 - `mu_pop_vec`: matrix with the fixed point values of the variable mu at the iterations specified by saveat.
@@ -676,7 +688,8 @@ function population_dynamics_t!(
     p_cav_k::PdfDegVec,
     max_iter::Int;
     saveat::Union{Int, Vector{Int}} = 0,
-    rng::AbstractRNG = Xoshiro(1234))
+    rng::AbstractRNG = Xoshiro(1234),
+    damp::Float64 = 0.0)
 
     if saveat == 0
         saveat = max_iter
@@ -715,7 +728,7 @@ function population_dynamics_t!(
     idx = 1
     @inbounds @showprogress for t in 1:max_iter
 
-        update_cav_t!(p_cav_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, neigh_idxs)
+        update_cav_t!(p_cav_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, neigh_idxs, damp)
 
         if t in saveat
             mu_cav_pop_vec[:, idx] .= mu_cav_pop
