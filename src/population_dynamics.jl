@@ -66,7 +66,7 @@ function update_cav!(p_cav_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, ga
         mu_cav_pop[i] = 1.0
         q_cav_pop[i] = 1.0
         chi_cav_pop[i] = 0.0
-        continue
+        return
     end
 
     # Get k random neighbors
@@ -104,7 +104,7 @@ function update_full!(p_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, gamma
 
         # FULL UPDATE
         # Sample k_cav pairs of correlated J, J' values
-        @inbounds @simd for j in neigh_idxs[1:end-1]
+        @inbounds @simd for j in neigh_idxs
             J_pop[j], Jp_pop[j] = sample_couplings(rng, m, sigma2, gamma, K)
         end
         # Compute the new values for mu, q, chi using the update functions
@@ -225,14 +225,14 @@ function population_dynamics(
 
     converged = false
     # Loop over iterations until convergence or max_iter is reached
-    @inbounds @showprogress for t in 1:max_iter
+    @inbounds @showprogress for t in 1:P*max_iter
 
         update_cav!(p_cav_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, neigh_idxs, damp)
 
         converged = error_func(check_vars, mu_cav_pop, q_cav_pop, chi_cav_pop, tol)
 
         # Check for convergence
-        if t % check_conv == 0  # Check every 10 iterations
+        if t % check_conv*P == 0  # Check every 10 iterations
             if verbose
                 println("Iteration $t: max_diff = $max_diff")
             end
@@ -243,7 +243,7 @@ function population_dynamics(
                 break
             end
             if plothist
-                if t==check_conv
+                if t==check_conv*P
                     axs[1].cla()
                     binedgesmu = 0:0.05:maximum(mu_cav_pop)
                     fmu, _ = axs[1].hist(mu_cav_pop, bins=binedgesmu, alpha=0.5, density=true, color="C0")
@@ -398,7 +398,7 @@ function population_dynamics!(
 
     # Loop over iterations until convergence or max_iter is reached
     idx = 1
-    @inbounds @showprogress for t in 1:max_iter
+    @inbounds @showprogress for t in 1:max_iter*P
 
         update_cav!(p_cav_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, neigh_idxs, damp)
 
@@ -419,9 +419,9 @@ end
 
 
 
-#################################################
-######## Test with pre-sampled couplings ########
-#################################################
+###################################################################################
+####################### Test with pre-sampled couplings ###########################
+###################################################################################
 
 function update_cav_t!(p_cav_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, gamma::Float64, K::Union{Int,Float64}, rng::AbstractRNG, mu_cav_pop::Vector{Float64}, q_cav_pop::Vector{Float64}, chi_cav_pop::Vector{Float64}, J_pop::Vector{Float64}, Jp_pop::Vector{Float64}, neigh_idxs::Vector{Int}, damp::Float64)
     # Update each site in the population
