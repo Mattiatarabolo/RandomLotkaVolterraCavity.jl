@@ -58,40 +58,39 @@ end
 
 function update_cav!(p_cav_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, gamma::Float64, K::Union{Int,Float64}, rng::AbstractRNG, mu_cav_pop::Vector{Float64}, q_cav_pop::Vector{Float64}, chi_cav_pop::Vector{Float64}, J_pop::Vector{Float64}, Jp_pop::Vector{Float64}, neigh_idxs::Vector{Int}, damp::Float64)
     # Update each site in the population
-    @inbounds for i in shuffle(rng, 1:P)
-        # Sample the degree k
-        k_cav = sample_degree(rng, p_cav_k)
+    i = rand(rng, 1:P)
+    # Sample the degree k
+    k_cav = sample_degree(rng, p_cav_k)
 
-        if k_cav == 0
-            mu_cav_pop[i] = 1.0
-            q_cav_pop[i] = 1.0
-            chi_cav_pop[i] = 0.0
-            continue
-        end
-
-        # Get k random neighbors
-        sample_neighs!(rng, neigh_idxs, i, k_cav, P)
-        
-        # CAVITY UPDATE
-        # Sample k_cav pairs of correlated J, J' values
-         @inbounds @simd for j in neigh_idxs[1:end-1]
-            J_pop[j], Jp_pop[j] = sample_couplings(rng, m, sigma2, gamma, K)
-        end
-
-        ## We could sample a bigger population of J at the beginning and sample from it ##
-
-        # Compute the new values for mu, q, chi using the update functions
-        sum_q_cav, sum_chi_cav, Eps, Delta = sumpop(mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, neigh_idxs, k_cav)
-        mu_cav_pop[i] = (1-damp)*f_mu(sum_chi_cav, Eps, Delta) + damp*mu_cav_pop[i]
-        q_cav_pop[i] = (1-damp)*f_q(sum_q_cav, sum_chi_cav, Delta) + damp*q_cav_pop[i]
-        chi_cav_pop[i] = (1-damp)*f_chi(sum_chi_cav, Delta) + damp*chi_cav_pop[i]
-        testvalues(mu_cav_pop[i], q_cav_pop[i], chi_cav_pop[i], sum_q_cav, sum_chi_cav, Delta)
+    if k_cav == 0
+        mu_cav_pop[i] = 1.0
+        q_cav_pop[i] = 1.0
+        chi_cav_pop[i] = 0.0
+        return
     end
+
+    # Get k random neighbors
+    sample_neighs!(rng, neigh_idxs, i, k_cav, P)
+    
+    # CAVITY UPDATE
+    # Sample k_cav pairs of correlated J, J' values
+        @inbounds @simd for j in neigh_idxs[1:end-1]
+        J_pop[j], Jp_pop[j] = sample_couplings(rng, m, sigma2, gamma, K)
+    end
+
+    ## We could sample a bigger population of J at the beginning and sample from it ##
+
+    # Compute the new values for mu, q, chi using the update functions
+    sum_q_cav, sum_chi_cav, Eps, Delta = sumpop(mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, neigh_idxs, k_cav)
+    mu_cav_pop[i] = (1-damp)*f_mu(sum_chi_cav, Eps, Delta) + damp*mu_cav_pop[i]
+    q_cav_pop[i] = (1-damp)*f_q(sum_q_cav, sum_chi_cav, Delta) + damp*q_cav_pop[i]
+    chi_cav_pop[i] = (1-damp)*f_chi(sum_chi_cav, Delta) + damp*chi_cav_pop[i]
+    testvalues(mu_cav_pop[i], q_cav_pop[i], chi_cav_pop[i], sum_q_cav, sum_chi_cav, Delta)
 end
 
 function update_full!(p_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, gamma::Float64, K::Union{Int,Float64}, rng::AbstractRNG, mu_cav_pop::Vector{Float64}, q_cav_pop::Vector{Float64}, chi_cav_pop::Vector{Float64}, J_pop::Vector{Float64}, Jp_pop::Vector{Float64}, mu_pop::Vector{Float64}, q_pop::Vector{Float64}, chi_pop::Vector{Float64}, neigh_idxs::Vector{Int})
     # Update each site in the population
-    @inbounds for i in shuffle(rng, 1:P)
+    @inbounds for i in 1:P
         k_full = sample_degree(rng, p_k)
 
         if k_full == 0
@@ -182,14 +181,27 @@ function population_dynamics(
     rng::AbstractRNG = Xoshiro(1234), 
     verbose::Bool = false,
     plothist::Bool = false,
-    damp::Float64 = 0.0)
+    damp::Float64 = 0.0,
+    init_pops::Dict{String, Float64} = Dict("mu"=>Inf, "q"=>Inf, "chi"=>Inf))
 
     K = p_k.K
 
     # Initialize populations
-    mu_cav_pop = rand(rng, P)
-    q_cav_pop = rand(rng, P)
-    chi_cav_pop = rand(rng, P) .- 0.3
+    if init_pops["mu"] == Inf
+        mu_cav_pop = rand(rng, P)
+    else
+        mu_cav_pop = ones(P)*init_pops["mu"]
+    end
+    if init_pops["q"] == Inf
+        q_cav_pop = rand(rng, P)
+    else
+        q_cav_pop = ones(P)*init_pops["q"]
+    end
+    if init_pops["chi"] == Inf
+        chi_cav_pop = rand(rng, P) .- 0.3
+    else
+        chi_cav_pop = ones(P)*init_pops["chi"]
+    end
     mu_pop = zeros(P)
     q_pop = zeros(P)
     chi_pop = zeros(P)
@@ -198,7 +210,7 @@ function population_dynamics(
     neigh_idxs = zeros(Int, p_k.kmax)
 
     if plothist
-        _, axs = plt.subplots(1,3,figsize=(10, 4))
+        _, axs = plt.subplots(1,3,figsize=(10.5, 3))
     end
 
     muxlim = (0, 1)
@@ -207,17 +219,20 @@ function population_dynamics(
     muylim = (0, 1)
     qylim = (0, 1)
     chiylim = (0, 1)
+    binedgesmu = 0:0.05:1
+    binedgesq = 0:0.05:1
+    binedgeschi = -0.3:0.05:1
 
     converged = false
     # Loop over iterations until convergence or max_iter is reached
-    @inbounds @showprogress for t in 1:max_iter
+    @inbounds @showprogress for t in 1:P*max_iter
 
         update_cav!(p_cav_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, neigh_idxs, damp)
 
         converged = error_func(check_vars, mu_cav_pop, q_cav_pop, chi_cav_pop, tol)
 
         # Check for convergence
-        if t % check_conv == 0  # Check every 10 iterations
+        if t % check_conv*P == 0  # Check every 10 iterations
             if verbose
                 println("Iteration $t: max_diff = $max_diff")
             end
@@ -228,12 +243,11 @@ function population_dynamics(
                 break
             end
             if plothist
-                update_full!(p_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, mu_pop, q_pop, chi_pop, neigh_idxs)
-                
-                if t==check_conv
+                if t==check_conv*P
                     axs[1].cla()
-                    fmu, _ = axs[1].hist(mu_pop, bins=30, alpha=0.5, density=true, color="C0")
-                    muxlim = (0, maximum(mu_pop))
+                    binedgesmu = 0:0.05:maximum(mu_cav_pop)
+                    fmu, _ = axs[1].hist(mu_cav_pop, bins=binedgesmu, alpha=0.5, density=true, color="C0")
+                    muxlim = (0, maximum(mu_cav_pop))
                     muylim = (0, maximum(fmu)*1.1)
                     axs[1].set_title("Histogram of μ values")
                     axs[1].set_xlabel("μ")
@@ -242,8 +256,9 @@ function population_dynamics(
                     axs[1].set_ylim(muylim)
 
                     axs[2].cla()
-                    fq, _ = axs[2].hist(q_pop, bins=30, alpha=0.5, density=true, color="C1")
-                    qxlim = (0, maximum(q_pop))
+                    binedgesq = 0:0.05:maximum(q_cav_pop)
+                    fq, _ = axs[2].hist(q_cav_pop, bins=binedgesq, alpha=0.5, density=true, color="C1")
+                    qxlim = (0, maximum(q_cav_pop))
                     qylim = (0, maximum(fq)*1.1)
                     axs[2].set_title("Histogram of q values")
                     axs[2].set_xlabel("q")
@@ -251,16 +266,17 @@ function population_dynamics(
                     axs[2].set_ylim(qylim)
 
                     axs[3].cla()
-                    fchi, _ = axs[3].hist(chi_pop, bins=30, alpha=0.5, density=true, color="C2")
-                    chixlim = (minimum(chi_pop), maximum(chi_pop))
-                    chiylim = (minimum(chi_pop), maximum(fchi)*1.1)
+                    binedgeschi = minimum(chi_cav_pop):0.05:maximum(chi_cav_pop)
+                    fchi, _ = axs[3].hist(chi_cav_pop, bins=binedgeschi, alpha=0.5, density=true, color="C2")
+                    chixlim = (minimum(chi_cav_pop), maximum(chi_cav_pop))
+                    chiylim = (minimum(chi_cav_pop), maximum(fchi)*1.1)
                     axs[3].set_title("Histogram of χ values")
                     axs[3].set_xlabel("χ")
                     axs[3].set_xlim(chixlim)
                     axs[3].set_ylim(chiylim)
                 else 
                     axs[1].cla()
-                    axs[1].hist(mu_pop, bins=30, alpha=0.5, density=true, color="C0")
+                    axs[1].hist(mu_cav_pop, bins=binedgesmu, alpha=0.5, density=true, color="C0")
                     axs[1].set_title("Histogram of μ values")
                     axs[1].set_xlabel("μ")
                     axs[1].set_ylabel("Frequency")
@@ -268,14 +284,14 @@ function population_dynamics(
                     axs[1].set_ylim(muylim)
 
                     axs[2].cla()
-                    axs[2].hist(q_pop, bins=30, alpha=0.5, density=true, color="C1")
+                    axs[2].hist(q_cav_pop, bins=binedgesq, alpha=0.5, density=true, color="C1")
                     axs[2].set_title("Histogram of q values")
                     axs[2].set_xlabel("q")
                     axs[2].set_xlim(qxlim)
                     axs[2].set_ylim(qylim)
 
                     axs[3].cla()
-                    axs[3].hist(chi_pop, bins=30, alpha=0.5, density=true, color="C2")
+                    axs[3].hist(chi_cav_pop, bins=binedgeschi, alpha=0.5, density=true, color="C2")
                     axs[3].set_title("Histogram of χ values")
                     axs[3].set_xlabel("χ")
                     axs[3].set_xlim(chixlim)
@@ -382,7 +398,7 @@ function population_dynamics!(
 
     # Loop over iterations until convergence or max_iter is reached
     idx = 1
-    @inbounds @showprogress for t in 1:max_iter
+    @inbounds @showprogress for t in 1:max_iter*P
 
         update_cav!(p_cav_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, neigh_idxs, damp)
 
@@ -403,9 +419,9 @@ end
 
 
 
-#################################################
-######## Test with pre-sampled couplings ########
-#################################################
+###################################################################################
+####################### Test with pre-sampled couplings ###########################
+###################################################################################
 
 function update_cav_t!(p_cav_k::PdfDegVec, P::Int, m::Float64, sigma2::Float64, gamma::Float64, K::Union{Int,Float64}, rng::AbstractRNG, mu_cav_pop::Vector{Float64}, q_cav_pop::Vector{Float64}, chi_cav_pop::Vector{Float64}, J_pop::Vector{Float64}, Jp_pop::Vector{Float64}, neigh_idxs::Vector{Int}, damp::Float64)
     # Update each site in the population
