@@ -216,9 +216,6 @@ function population_dynamics(
     muxlim = (0, 1)
     qxlim = (0, 1)
     chixlim = (0, 1)
-    muylim = (0, 1)
-    qylim = (0, 1)
-    chiylim = (0, 1)
     binedgesmu = 0:0.05:1
     binedgesq = 0:0.05:1
     binedgeschi = -0.3:0.05:1
@@ -247,32 +244,26 @@ function population_dynamics(
                     binedgesmu = 0:0.05:maximum(mu_cav_pop)
                     fmu, _ = axs[1].hist(mu_cav_pop, bins=binedgesmu, alpha=0.5, density=true, color="C0")
                     muxlim = (0, maximum(mu_cav_pop))
-                    muylim = (0, maximum(fmu)*1.1)
                     axs[1].set_title("Histogram of μ values")
                     axs[1].set_xlabel("μ")
                     axs[1].set_ylabel("Frequency")
                     axs[1].set_xlim(muxlim)
-                    axs[1].set_ylim(muylim)
 
                     axs[2].cla()
                     binedgesq = 0:0.05:maximum(q_cav_pop)
                     fq, _ = axs[2].hist(q_cav_pop, bins=binedgesq, alpha=0.5, density=true, color="C1")
                     qxlim = (0, maximum(q_cav_pop))
-                    qylim = (0, maximum(fq)*1.1)
                     axs[2].set_title("Histogram of q values")
                     axs[2].set_xlabel("q")
                     axs[2].set_xlim(qxlim)
-                    axs[2].set_ylim(qylim)
 
                     axs[3].cla()
                     binedgeschi = minimum(chi_cav_pop):0.05:maximum(chi_cav_pop)
                     fchi, _ = axs[3].hist(chi_cav_pop, bins=binedgeschi, alpha=0.5, density=true, color="C2")
                     chixlim = (minimum(chi_cav_pop), maximum(chi_cav_pop))
-                    chiylim = (minimum(chi_cav_pop), maximum(fchi)*1.1)
                     axs[3].set_title("Histogram of χ values")
                     axs[3].set_xlabel("χ")
                     axs[3].set_xlim(chixlim)
-                    axs[3].set_ylim(chiylim)
                 else 
                     axs[1].cla()
                     axs[1].hist(mu_cav_pop, bins=binedgesmu, alpha=0.5, density=true, color="C0")
@@ -280,21 +271,18 @@ function population_dynamics(
                     axs[1].set_xlabel("μ")
                     axs[1].set_ylabel("Frequency")
                     axs[1].set_xlim(muxlim)
-                    axs[1].set_ylim(muylim)
 
                     axs[2].cla()
                     axs[2].hist(q_cav_pop, bins=binedgesq, alpha=0.5, density=true, color="C1")
                     axs[2].set_title("Histogram of q values")
                     axs[2].set_xlabel("q")
                     axs[2].set_xlim(qxlim)
-                    axs[2].set_ylim(qylim)
 
                     axs[3].cla()
                     axs[3].hist(chi_cav_pop, bins=binedgeschi, alpha=0.5, density=true, color="C2")
                     axs[3].set_title("Histogram of χ values")
                     axs[3].set_xlabel("χ")
                     axs[3].set_xlim(chixlim)
-                    axs[3].set_ylim(chiylim)
                 end
             end
         end
