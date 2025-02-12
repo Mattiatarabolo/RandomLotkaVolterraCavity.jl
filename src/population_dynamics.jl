@@ -229,10 +229,9 @@ function population_dynamics(
 
         update_cav!(p_cav_k, P, m, sigma2, gamma, K, rng, mu_cav_pop, q_cav_pop, chi_cav_pop, J_pop, Jp_pop, neigh_idxs, damp)
 
-        converged = error_func(check_vars, mu_cav_pop, q_cav_pop, chi_cav_pop, tol)
-
         # Check for convergence
         if t % check_conv*P == 0  # Check every 10 iterations
+            max_diff, converged = error_func(check_vars, mu_cav_pop, q_cav_pop, chi_cav_pop, tol)
             if verbose
                 println("Iteration $t: max_diff = $max_diff")
             end

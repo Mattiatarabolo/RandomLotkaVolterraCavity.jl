@@ -169,7 +169,7 @@ function error_func(check_vars::Dict{String, Float64}, mu_pop::Vector{Float64}, 
 
     check_vars["avg_mu"] = new_avg_mu
 
-    return (max_diff_avg < tol["avg"])
+    return max_diff_avg, max_diff_avg < tol["avg"]
 end
 
 
