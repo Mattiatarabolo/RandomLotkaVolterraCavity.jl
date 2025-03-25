@@ -1,11 +1,4 @@
-# Shortname for functions used in cavity update
-function gauss(x::Float64)
-    return exp( - x^2 / 2) / sqrt( 2 * pi )
-end
 
-function mod_erf(x::Float64)
-    return ( 1 + erf(x / sqrt(2)) ) / 2
-end
 
 # Function to compute all the quantities obtain by the sum of neighbours' terms in the cavity update
 function sumpop(mu_pop::Vector{Float64}, q_pop::Vector{Float64}, chi_pop::Vector{Float64}, J_pop::Vector{Float64}, Jp_pop::Vector{Float64}, neigh_idxs::Vector{Int}, k::Int)
