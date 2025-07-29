@@ -18,7 +18,7 @@ nnoises(Deterministic::Type{Deterministic}) = 1
 A type that represents a cavity in the fixed-point algorithm for deterministic dynamics.
 
 # Fields
-\\$(TYPEDFIELDS)
+$(TYPEDFIELDS)
 """
 mutable struct CavityFP{Deterministic, I<:Integer, RT<:Real}
     """ Node index """
@@ -60,7 +60,7 @@ end
 A type that represents a marginal in the fixed-point algorithm for deterministic dynamics.
 
 # Fields
-\\$(TYPEDFIELDS)
+$(TYPEDFIELDS)
 """
 mutable struct MarginalFP{Deterministic, I<:Integer, RT<:Real}
     """ Node index """
@@ -99,7 +99,7 @@ end
 A type that represents a node in the fixed-point algorithm for deterministic dynamics.
 
 # Fields
-\\$(TYPEDFIELDS)
+$(TYPEDFIELDS)
 """
 struct NodeFP{Deterministic, I<:Integer, RT<:Real}
     """ Node index """
@@ -140,7 +140,7 @@ end
 A type that represents a population of messages for the fixed-point algorithm in deterministic dynamics.
 
 # Fields
-\\$(TYPEDFIELDS)
+$(TYPEDFIELDS)
 """
 struct PopFP{Deterministic, I<:Integer, RT<:Real}
     """Population of averages"""
@@ -184,7 +184,7 @@ end
 A type that represents a population of interaction strengths J and J' for a given number of nodes.
 
 # Fields
-\\$(TYPEDFIELDS)
+$(TYPEDFIELDS)
 """
 struct PopJ{Deterministic, I<:Integer, RT<:Real}
     """Population of interaction strengths J"""

@@ -20,7 +20,7 @@ abstract type AbstractNoiseKind end
 A type to store the main parameters for simulating a generalized Lotka-Volterra system with disordered couplings on a random graph.
 
 # Fields
-\\$(TYPEDFIELDS)
+$(TYPEDFIELDS)
 """
 struct ModelDisordered{NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D1<:Distribution, D2<:Distribution, D3<:Distribution, FT<:Function}
     """Number of nodes in the system."""
@@ -57,7 +57,7 @@ end
 A type to store the main parameters for simulating a generalized Lotka-Volterra system with disordered couplings on a fully-connected graph.
 
 # Fields
-\\$(TYPEDFIELDS)
+$(TYPEDFIELDS)
 """
 struct ModelDisorderedFC{NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D<:Distribution}
     """Number of nodes in the system."""
@@ -86,7 +86,7 @@ end
 A type to store the main parameters for simulating a generalized Lotka-Volterra on a graph.
 
 # Fields
-\\$(TYPEDFIELDS)
+$(TYPEDFIELDS)
 """
 struct Model{NK<:AbstractNoiseKind, I<:Integer, RT<:Real, MT<:AbstractMatrix{RT}, D<:Distribution}
     """Number of nodes in the system."""

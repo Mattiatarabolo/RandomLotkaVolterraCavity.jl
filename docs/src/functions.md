@@ -2,7 +2,7 @@
 CurrentModule = RandomLotkaVolterraCavity
 ```
 
-# The MyAwesomePackage Module
+# The RandomLotkaVolterraCavity Module
 
 ```@docs
 RandomLotkaVolterraCavity
@@ -17,5 +17,5 @@ Modules = [RandomLotkaVolterraCavity]
 
 ```@autodocs
 Modules = [RandomLotkaVolterraCavity]
-Pages   = ["utils.jl", "population_dynamics.jl"]
+Pages   = ["types.jl", "sample.jl", "deterministic/types.jl", "deterministic/utils.jl", "deterministic/GECaM_FP.jl"]
 ```
