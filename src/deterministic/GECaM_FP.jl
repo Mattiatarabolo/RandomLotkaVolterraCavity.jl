@@ -102,8 +102,11 @@ function run_GECaM_FP(model::Model{Deterministic, I, RT, MT, D}, max_iter::I, co
                 new_chi = f_chi(Delta, Gamma)
                 # Check for divergence
                 if !isfinite(new_mu) || !isfinite(new_q) || !isfinite(new_chi) || new_mu < 0 || new_q < 0 || new_mu > divergence_threshold || new_q > divergence_threshold || new_chi > divergence_threshold
-                    println("Divergence (or negative values) detected in cavity ($i, $j): mu=$(new_mu), q=$(new_q), chi=$(new_chi).")
+                    if showprogress
+                        println("Divergence (or negative values) detected in cavity ($i, $j): mu=$(new_mu), q=$(new_q), chi=$(new_chi).")
+                    end
                     diverged = true
+                    converged = false
                     break
                 end
                 # Compute the norm for convergence check
@@ -125,8 +128,10 @@ function run_GECaM_FP(model::Model{Deterministic, I, RT, MT, D}, max_iter::I, co
             println("Iteration $iter: $norm (convergence threshold $conv_threshold)")
         end
         # Check for divergence or convergence
-        if diverged
-            println("Divergence detected in iteration $iter. Returning early.")
+        if diverged && showprogress
+            if showprogress
+                println("Divergence detected in iteration $iter. Returning early.")
+            end
             break
         elseif norm < conv_threshold
             converged = true
@@ -139,7 +144,7 @@ function run_GECaM_FP(model::Model{Deterministic, I, RT, MT, D}, max_iter::I, co
     end
 
     # Checl for convergence
-    if !converged && !diverged
+    if !converged && !diverged && showprogress
         println("Maximum iterations reached without convergence. Final norm: $norm (convergence threshold $conv_threshold).")
     end
 
@@ -166,8 +171,11 @@ function run_GECaM_FP(model::Model{Deterministic, I, RT, MT, D}, max_iter::I, co
         inode.marg.chi = f_chi(Delta, Gamma)
         # Check for divergence
         if !isfinite(inode.marg.mu) || !isfinite(inode.marg.q) || !isfinite(inode.marg.chi) || inode.marg.mu < 0 || inode.marg.q < 0 || inode.marg.mu > divergence_threshold || inode.marg.q > divergence_threshold || inode.marg.chi > divergence_threshold
-            println("Divergence (or negative values) detected in marginal node $(inode.i): mu=$(inode.marg.mu), q=$(inode.marg.q), chi=$(inode.marg.chi).")
+            if showprogress
+                println("Divergence (or negative values) detected in marginal node $(inode.i): mu=$(inode.marg.mu), q=$(inode.marg.q), chi=$(inode.marg.chi).")
+            end
             diverged = true
+            converged = false
             break
         end
     end
@@ -295,8 +303,10 @@ function run_GECaM_FP(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, F
                 new_chi = f_chi(Delta_cav, Gamma_cav)
             end
             # Check for divergence
-            if (!isfinite(new_mu) || !isfinite(new_q) || !isfinite(new_chi) || new_mu < 0 || new_q < 0 || new_mu > divergence_threshold || new_q > divergence_threshold || new_chi > divergence_threshold) && showprogress
-                println("Divergence (or negative values) detected in cavity $ipop: mu=$(new_mu), q=$(new_q), chi=$(new_chi).")
+            if !isfinite(new_mu) || !isfinite(new_q) || !isfinite(new_chi) || new_mu < 0 || new_q < 0 || new_mu > divergence_threshold || new_q > divergence_threshold || new_chi > divergence_threshold
+                if showprogress
+                    println("Divergence (or negative values) detected in cavity $ipop: mu=$(new_mu), q=$(new_q), chi=$(new_chi).")
+                end
                 diverged = true
                 converged = false
                 break
@@ -308,8 +318,10 @@ function run_GECaM_FP(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, F
             cav_pop.chi_pop[ipop] = damp * new_chi + (1 - damp) * old_chi
         end
         # Check for divergence
-        if diverged && showprogress
-            println("Divergence detected in iteration $iter. Returning early.")
+        if diverged
+            if showprogress
+                println("Divergence detected in iteration $iter. Returning early.")
+            end
             break
         end
         # Compute the averages for convergence check
@@ -372,8 +384,10 @@ function run_GECaM_FP(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, F
             marg_pop.chi_pop[ipop] = f_chi(Delta_marg, Gamma_marg)
         end
         # Check for divergence
-        if (!isfinite(marg_pop.mu_pop[ipop]) || !isfinite(marg_pop.q_pop[ipop]) || !isfinite(marg_pop.chi_pop[ipop]) || marg_pop.mu_pop[ipop] < 0 || marg_pop.q_pop[ipop] < 0 || marg_pop.mu_pop[ipop] > divergence_threshold || marg_pop.q_pop[ipop] > divergence_threshold || marg_pop.chi_pop[ipop] > divergence_threshold) && showprogress
-            println("Divergence (or negative values) detected in marginal node $ipop: mu=$(marg_pop.mu_pop[ipop]), q=$(marg_pop.q_pop[ipop]), chi=$(marg_pop.chi_pop[ipop]).")
+        if !isfinite(marg_pop.mu_pop[ipop]) || !isfinite(marg_pop.q_pop[ipop]) || !isfinite(marg_pop.chi_pop[ipop]) || marg_pop.mu_pop[ipop] < 0 || marg_pop.q_pop[ipop] < 0 || marg_pop.mu_pop[ipop] > divergence_threshold || marg_pop.q_pop[ipop] > divergence_threshold || marg_pop.chi_pop[ipop] > divergence_threshold
+            if showprogress
+                println("Divergence (or negative values) detected in marginal node $ipop: mu=$(marg_pop.mu_pop[ipop]), q=$(marg_pop.q_pop[ipop]), chi=$(marg_pop.chi_pop[ipop]).")
+            end
             diverged = true
             converged = false
             break
