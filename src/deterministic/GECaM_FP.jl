@@ -298,6 +298,7 @@ function run_GECaM_FP(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, F
             if (!isfinite(new_mu) || !isfinite(new_q) || !isfinite(new_chi) || new_mu < 0 || new_q < 0 || new_mu > divergence_threshold || new_q > divergence_threshold || new_chi > divergence_threshold) && showprogress
                 println("Divergence (or negative values) detected in cavity $ipop: mu=$(new_mu), q=$(new_q), chi=$(new_chi).")
                 diverged = true
+                converged = false
                 break
             end
             # Update the cavity values with damping
@@ -374,6 +375,7 @@ function run_GECaM_FP(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, F
         if (!isfinite(marg_pop.mu_pop[ipop]) || !isfinite(marg_pop.q_pop[ipop]) || !isfinite(marg_pop.chi_pop[ipop]) || marg_pop.mu_pop[ipop] < 0 || marg_pop.q_pop[ipop] < 0 || marg_pop.mu_pop[ipop] > divergence_threshold || marg_pop.q_pop[ipop] > divergence_threshold || marg_pop.chi_pop[ipop] > divergence_threshold) && showprogress
             println("Divergence (or negative values) detected in marginal node $ipop: mu=$(marg_pop.mu_pop[ipop]), q=$(marg_pop.q_pop[ipop]), chi=$(marg_pop.chi_pop[ipop]).")
             diverged = true
+            converged = false
             break
         end
     end
