@@ -7,13 +7,17 @@ $(EXPORTS)
 
 """
 module RandomLotkaVolterraCavity
-    using DocStringExtensions, Random, StatsBase, SpecialFunctions, ProgressMeter, SparseArrays, Graphs, OrdinaryDiffEq, LinearAlgebra, PyPlot, PyCall
+    using DocStringExtensions, Dates, ProgressMeter
+    using Random, SparseArrays, LinearAlgebra, StatsBase, Distributions, Graphs, SpecialFunctions
+    # using Random, StatsBase, SpecialFunctions, ProgressMeter, SparseArrays, Graphs, OrdinaryDiffEq, LinearAlgebra, PyPlot, PyCall
 
-    export  population_dynamics, population_dynamics!, population_dynamics_t, population_dynamics_t!, sample_glv, sample_couplings, sample_x, PdfDegVec, sample_degree, get_index, analytic_FC
+    export AbstractNoiseKind, ModelDisordered, ModelDisorderedFC, Model, sample_couplings, run_MC
+    export Deterministic, CavityFP, MarginalFP, NodeFP, PopFP, PopJ, run_GECaM_FP, analytic_FC
+    #export population_dynamics, population_dynamics!, population_dynamics_t, population_dynamics_t!, sample_glv, sample_couplings, sample_x, PdfDegVec, sample_degree, get_index, analytic_FC
 
     include("types.jl")
-    include("utils.jl")
     include("sample.jl")
-    include("population_dynamics.jl")
-    include("single_defect.jl")
+    include("deterministic/types.jl")
+    include("deterministic/utils.jl")
+    include("deterministic/GECaM_FP.jl")
 end

@@ -1,61 +1,108 @@
-"""
-    PdfDegVec
+##############################################################################################
+###################################         MODELS         ###################################
+##############################################################################################
 
-Structure to store the degree distribution of a network.
+"""
+    AbstractNoiseKind
+
+An abstract type that represents the kind of noise in the model. It can be one of the following:
+- `Deterministic`: Represents deterministic dynamics, i.e., no noise.
+- `Demographic`: Represents demographic noise, i.e., emerging from birth and death processes.
+- `Environmental`: Represents environmental noise, i.e., arising from external factors affecting the population dynamics.
+"""
+abstract type AbstractNoiseKind end
+
+
+
+"""
+    ModelDisordered{NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D1<:Distribution, D2<:Distribution, D3<:Distribution, FT<:Function}
+
+A type to store the main parameters for simulating a generalized Lotka-Volterra system with disordered couplings on a random graph.
 
 # Fields
+\\$(TYPEDFIELDS)
+"""
+struct ModelDisordered{NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D1<:Distribution, D2<:Distribution, D3<:Distribution, FT<:Function}
+    """Number of nodes in the system."""
+    N::I
+    """Average degree of the interaction graph."""
+    K::RT
+    """Number of discretized time steps for the simulation trajectories."""
+    M::I
+    """Function to generate the adjacency matrix"""
+    generate_adj::FT
+    """Distribution or sampler for the degree of the nodes. This should be a distribution object from the package Distributions.jl."""
+    deg_pdf::D1
+    """Distribution or sampler for the cavity degree of the nodes. This should be a distribution object from the package Distributions.jl."""
+    deg_cav_pdf::D2
+    """Average coupling strength"""
+    m::RT
+    """Variance of the coupling strength"""
+    sigma2::RT
+    """Correlation of the couplings strength"""
+    corr::RT
+    """Immigration rate (lambda)."""
+    lam::RT
+    """Distribution or sampler for initial conditions (p0) of trajectories. This should be a distribution object from the package Distributions.jl."""
+    p0::D3
+    """Noise of the system."""
+    noise::NK
+end
 
-$(TYPEDFIELDS)
+
 
 """
-struct PdfDegVec
-    """Probability distribution of the degree."""
-    pdf::Vector{Float64}
-    """Vector of degrees."""
-    deg::Vector{Int}
-    """Minimum degree."""
-    kmin::Int
-    """Maximum degree."""
-    kmax::Int
-    """Average degree."""
-    K::Union{Float64,Int64}
-    """Dictionary to map degree to index."""
-    index_dict::Dict{Int, Int}  # Store indices instead of pdf values
-    @doc """
-        PdfDegVec(pdf_deg::Function, deg::Vector{Int})
+    ModelDisorderedFC{NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D<:Distribution}
 
-    Constructs a `PdfDegVec` structure from a degree distribution function.
+A type to store the main parameters for simulating a generalized Lotka-Volterra system with disordered couplings on a fully-connected graph.
 
-    Arguments:
-    - `pdf_deg::Function`: Function that returns the probability of a given degree.
-    - `deg::Vector{Int}`: Vector of degrees.
+# Fields
+\\$(TYPEDFIELDS)
+"""
+struct ModelDisorderedFC{NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D<:Distribution}
+    """Number of nodes in the system."""
+    N::I
+    """Number of discretized time steps for the simulation trajectories."""
+    M::I
+    """Average coupling strength"""
+    m::RT
+    """Variance of the coupling strength"""
+    sigma2::RT
+    """Correlation of the couplings strength"""
+    corr::RT
+    """Immigration rate (lambda)."""
+    lam::RT
+    """Distribution or sampler for initial conditions (p0) of trajectories. This should be a distribution object from the package Distributions.jl."""
+    p0::D
+    """Noise of the system."""
+    noise::NK
+end
 
-    Returns:
-    - `PdfDegVec`: Degree distribution structure.
+
+
+"""
+    Model{NK<:AbstractNoiseKind, I<:Integer, RT<:Real, MT<:AbstractMatrix{RT}}<
+
+A type to store the main parameters for simulating a generalized Lotka-Volterra on a graph.
+
+# Fields
+\\$(TYPEDFIELDS)
+"""
+struct Model{NK<:AbstractNoiseKind, I<:Integer, RT<:Real, MT<:AbstractMatrix{RT}, D<:Distribution}
+    """Number of nodes in the system."""
+    N::I
+    """Number of discretized time steps for the simulation trajectories."""
+    M::I
+    """Adjacency matrix representing the interactions between nodes.
+    Can be a dense or sparse matrix with Real-valued elements."""
+    J::MT
+    """Immigration rate (lambda)."""
+    lam::RT
+    """Distribution or sampler for initial conditions (p0) of trajectories.
+    This could be a function (e.g., `rng -> initial_state`), a distribution
+    object from a package like Distributions.jl, or a custom sampler type.
     """
-    function PdfDegVec(pdf_deg::Function, deg::Vector{Int})
-        pdf_vals = pdf_deg.(deg)
-        K = sum(pdf_vals .* deg)
-        index_map = Dict(deg .=> eachindex(deg))  # Map degree to index
-        new(pdf_vals, deg, minimum(deg), maximum(deg), K, index_map)
-    end
-
-    @doc """
-        PdfDegVec(pdf_deg::Function, deg::Vector{Int}, K::Union{Float64,Int64})
-
-    Constructs a `PdfDegVec` structure from a degree distribution function.
-
-    Arguments:
-    - `pdf_deg::Function`: Function that returns the probability of a given degree.
-    - `deg::Vector{Int}`: Vector of degrees.
-    - `K::Union{Float64,Int64}`: Average degree.
-
-    Returns:
-    - `PdfDegVec`: Degree distribution structure.
-    """
-    function PdfDegVec(pdf_deg::Function, deg::Vector{Int}, K::Union{Float64,Int64})
-        pdf_vals = pdf_deg.(deg)
-        index_map = Dict(deg .=> eachindex(deg))  # Map degree to index
-        new(pdf_vals, deg, minimum(deg), maximum(deg), K, index_map)
-    end
+    p0::D
+    """Noise of the system."""
+    noise::NK
 end

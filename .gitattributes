@@ -1,2 +1,4 @@
-**.ipynb linguist-vendored
-notes/** linguist-vendored
+*.ipynb linguist-vendored
+*.lyx linguist-vendored
+*.tex linguist-vendored
+*.bib linguist-vendored
