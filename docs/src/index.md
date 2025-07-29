@@ -4,7 +4,7 @@ Documentation for [RandomLotkaVolterraCavity](https://github.com/Mattiatarabolo/
 
 ## Overview
 
-The purpose of _RandomLotkaVolterraCavity.jl_ is to provide a framework to study the ficed-point structure of the Lotka-Volterra model on random graphs with the cavity method.
+The purpose of _RandomLotkaVolterraCavity.jl_ is to provide a framework to study the fixed-point structure of the Lotka-Volterra model on random graphs with the cavity method.
 
 ## Installation
 
