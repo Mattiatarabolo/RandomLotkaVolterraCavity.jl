@@ -27,7 +27,7 @@ end
 ############################## Single instance of disordered model ########################################
 ###########################################################################################################
 """
-    run_GECaM_FP(model::Model{Deterministic, I, RT, MT, D}, max_iter::I, conv_threshold::RT, damp::RT; init_type::Symbol=:random, mu0::RT=0.0, q0::RT=0.0, chi0::RT=0.0, rng::AbstractRNG=Xoshiro(1234), showprogress::Bool=false, regularization::RT=-Inf) where {I<:Integer, RT<:Real, MT<:AbstractMatrix{RT}, D<:Distribution}
+    run_GECaM_FP(model::Model{Deterministic, I, RT, MT, D}, max_iter::I, conv_threshold::RT, damp::RT; init_type::Symbol=:random, mu0::RT=0.0, q0::RT=0.0, chi0::RT=0.0, rng::AbstractRNG=Xoshiro(1234), showprogress::Bool=false, verbose::Bool=false, regularization::RT=-Inf) where {I<:Integer, RT<:Real, MT<:AbstractMatrix{RT}, D<:Distribution}
 
 Run the Gaussian Expansion Cavity Method (GECaM) fixed-point algorithm for deterministic dynamics. It computes the fixed-point values of the mean abundances, correlations, and susceptibilities for a given instance of the disordered model.
 
@@ -44,6 +44,7 @@ Run the Gaussian Expansion Cavity Method (GECaM) fixed-point algorithm for deter
 - `chi0::RT`: Initial value for the susceptibility (used if `init_type` is `:custom`, default is `0.0`).
 - `rng::AbstractRNG`: Random number generator for random initialization (default is `Xoshiro(1234)`).
 - `showprogress::Bool`: Whether to show progress during the iterations (default is `false`).
+- `verbose::Bool`: Whether to print detailed information during the iterations (default is `false`).
 - `divergence_threshold::RT`: Threshold for detecting divergence in the algorithm (default is `1e6`).
 - `regularization::RT`: Regularization parameter to avoid negative values (default is `-Inf`).
 
@@ -52,12 +53,17 @@ Run the Gaussian Expansion Cavity Method (GECaM) fixed-point algorithm for deter
 - `converged::Bool`: Whether the algorithm converged within the specified number of iterations.
 - `diverged::Bool`: Whether the algorithm diverged during the iterations.
 """
-function run_GECaM_FP(model::Model{Deterministic, I, RT, MT, D}, max_iter::I, conv_threshold::RT, damp::RT; init_type::Symbol=:random, mu0::RT=0.0, q0::RT=0.0, chi0::RT=0.0, rng::AbstractRNG=Xoshiro(1234), showprogress::Bool=false, divergence_threshold::RT=1e6, regularization::RT=-Inf) where {I<:Integer, RT<:Real, MT<:AbstractMatrix{RT}, D<:Distribution}
+function run_GECaM_FP(model::Model{Deterministic, I, RT, MT, D}, max_iter::I, conv_threshold::RT, damp::RT; init_type::Symbol=:random, mu0::RT=0.0, q0::RT=0.0, chi0::RT=0.0, rng::AbstractRNG=Xoshiro(1234), showprogress::Bool=false, verbose::Bool=false, divergence_threshold::RT=1e6, regularization::RT=-Inf) where {I<:Integer, RT<:Real, MT<:AbstractMatrix{RT}, D<:Distribution}
     @assert max_iter > 0 "Maximum number of iterations must be greater than zero."
     @assert conv_threshold > 0 "Convergence threshold must be greater than zero."
     @assert damp >= 0 && damp <= 1 "Damping factor must be in the range [0, 1]."
     @assert init_type in [:zero, :random, :custom] "Initialization type must be one of: :zero, :random, :custom."
     @assert divergence_threshold > 0 "Divergence threshold must be greater than zero."
+
+    # If showprogress is true, verbose is also true
+    if showprogress
+        verbose = true
+    end
 
     # Initialize the nodes
     nodes = init_nodes(model, init_type, mu0, q0, chi0, rng)
@@ -68,7 +74,7 @@ function run_GECaM_FP(model::Model{Deterministic, I, RT, MT, D}, max_iter::I, co
     norm = zero(RT) # Initialize the norm for convergence check
 
     # Cavity iterations
-    if showprogress
+    if showprogress || verbose
         println("Starting cavity iterations...")
         start = now()
     end
@@ -102,7 +108,7 @@ function run_GECaM_FP(model::Model{Deterministic, I, RT, MT, D}, max_iter::I, co
                 new_chi = f_chi(Delta, Gamma)
                 # Check for divergence
                 if !isfinite(new_mu) || !isfinite(new_q) || !isfinite(new_chi) || new_mu < 0 || new_q < 0 || new_mu > divergence_threshold || new_q > divergence_threshold || new_chi > divergence_threshold
-                    if showprogress
+                    if showprogress || verbose
                         println("Divergence (or negative values) detected in cavity ($i, $j): mu=$(new_mu), q=$(new_q), chi=$(new_chi).")
                     end
                     diverged = true
@@ -123,29 +129,28 @@ function run_GECaM_FP(model::Model{Deterministic, I, RT, MT, D}, max_iter::I, co
                 break
             end
         end
-        # Print status
+        # Print progress status
         if showprogress
             println("Iteration $iter: $norm (convergence threshold $conv_threshold)")
         end
         # Check for divergence or convergence
-        if diverged && showprogress
-            if showprogress
+        if diverged
+            if showprogress || verbose
                 println("Divergence detected in iteration $iter. Returning early.")
             end
             break
         elseif norm < conv_threshold
             converged = true
-            if showprogress
-                println("Convergence achieved in iteration $iter with norm $norm (convergence threshold $conv_threshold).")
-                println("Total time taken: $(now() - start).")
-                break
+            if showprogress || verbose
+                println("Convergence achieved in iteration $iter with norm $norm (convergence threshold $conv_threshold). Total time taken: $(now() - start).")
             end
+            break
         end
     end
 
     # Checl for convergence
-    if !converged && !diverged && showprogress
-        println("Maximum iterations reached without convergence. Final norm: $norm (convergence threshold $conv_threshold).")
+    if !converged && !diverged && (showprogress || verbose)
+        println("Maximum iterations reached without convergence. Final norm: $norm (convergence threshold $conv_threshold). Total time taken: $(now() - start).")
     end
 
     # Marginal updates
@@ -171,7 +176,7 @@ function run_GECaM_FP(model::Model{Deterministic, I, RT, MT, D}, max_iter::I, co
         inode.marg.chi = f_chi(Delta, Gamma)
         # Check for divergence
         if !isfinite(inode.marg.mu) || !isfinite(inode.marg.q) || !isfinite(inode.marg.chi) || inode.marg.mu < 0 || inode.marg.q < 0 || inode.marg.mu > divergence_threshold || inode.marg.q > divergence_threshold || inode.marg.chi > divergence_threshold
-            if showprogress
+            if showprogress || verbose
                 println("Divergence (or negative values) detected in marginal node $(inode.i): mu=$(inode.marg.mu), q=$(inode.marg.q), chi=$(inode.marg.chi).")
             end
             diverged = true
@@ -215,7 +220,7 @@ function sumpop(pop::PopFP{Deterministic, I, RT}, couplings_pop::PopJ{Determinis
 end
 
 """
-    run_GECaM_FP(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, FT}, P::I, max_iter::I, conv_threshold::RT, damp::RT; init_type::Symbol=:random, mu0::RT=0.0, q0::RT=0.0, chi0::RT=0.0, rng::AbstractRNG=Xoshiro(1234), showprogress::Bool=false, divergence_threshold::RT=1e6, regularization::RT=-Inf) where {I<:Integer, RT<:Real, D1<:Distribution, D2<:Distribution, D3<:Distribution, FT<:Function}
+    run_GECaM_FP(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, FT}, P::I, max_iter::I, conv_threshold::RT, damp::RT; init_type::Symbol=:random, mu0::RT=0.0, q0::RT=0.0, chi0::RT=0.0, rng::AbstractRNG=Xoshiro(1234), showprogress::Bool=false, verbose::Bool=false, divergence_threshold::RT=1e6, regularization::RT=-Inf) where {I<:Integer, RT<:Real, D1<:Distribution, D2<:Distribution, D3<:Distribution, FT<:Function}
 
 Run the Gaussian Expansion Cavity Method (GECaM) fixed-point algorithm for a disordered model with deterministic dynamics. It computes through a population dynamics algorithm the fixed-point values of the mean abundances, correlations, and susceptibilities averaged over the disordered model.
 
@@ -233,6 +238,7 @@ Run the Gaussian Expansion Cavity Method (GECaM) fixed-point algorithm for a dis
 - `chi0::RT`: Initial value for the susceptibility (used if `init_type` is `:custom`, default is `0.0`).
 - `rng::AbstractRNG`: Random number generator for random initialization (default is `Xoshiro(1234)`).
 - `showprogress::Bool`: Whether to show progress during the iterations (default is `false`).
+- `verbose::Bool`: Whether to print detailed information during the iterations (default is `false`).
 - `divergence_threshold::RT`: Threshold for detecting divergence in the algorithm (default  is `1e6`).
 - `regularization::RT`: Regularization parameter to avoid negative values (default is `-Inf`).
 
@@ -242,12 +248,17 @@ Run the Gaussian Expansion Cavity Method (GECaM) fixed-point algorithm for a dis
 - `converged::Bool`: Whether the algorithm converged within the specified number of iterations.
 - `diverged::Bool`: Whether the algorithm diverged during the iterations.
 """
-function run_GECaM_FP(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, FT}, P::I, max_iter::I, conv_threshold::RT, damp::RT; init_type::Symbol=:random, mu0::RT=0.0, q0::RT=0.0, chi0::RT=0.0, rng::AbstractRNG=Xoshiro(1234), showprogress::Bool=false, divergence_threshold::RT=1e6, regularization::RT=-Inf) where {I<:Integer, RT<:Real, D1<:Distribution, D2<:Distribution, D3<:Distribution, FT<:Function}
+function run_GECaM_FP(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, FT}, P::I, max_iter::I, conv_threshold::RT, damp::RT; init_type::Symbol=:random, mu0::RT=0.0, q0::RT=0.0, chi0::RT=0.0, rng::AbstractRNG=Xoshiro(1234), showprogress::Bool=false, verbose::Bool=false, divergence_threshold::RT=1e6, regularization::RT=-Inf) where {I<:Integer, RT<:Real, D1<:Distribution, D2<:Distribution, D3<:Distribution, FT<:Function}
     @assert max_iter > 0 "Maximum number of iterations must be greater than zero."
     @assert conv_threshold > 0 "Convergence threshold must be greater than zero."
     @assert damp >= 0 && damp <= 1 "Damping factor must be in the range [0, 1]."
     @assert init_type in [:zero, :random, :custom] "Initialization type must be one of: :zero, :random, :custom."
     @assert divergence_threshold > 0 "Divergence threshold must be greater than zero."
+
+    # If showprogress is true, verbose is also true
+    if showprogress
+        verbose = true
+    end
 
     m, sigma2, corr, K = model.m, model.sigma2, model.corr, model.K # Default values from the model
 
@@ -270,7 +281,7 @@ function run_GECaM_FP(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, F
     norm = zero(RT) # Initialize the norm for convergence check
 
     # Cavity iterations
-    if showprogress
+    if showprogress || verbose
         println("Starting cavity iterations...")
         start = now()
     end
@@ -304,7 +315,7 @@ function run_GECaM_FP(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, F
             end
             # Check for divergence
             if !isfinite(new_mu) || !isfinite(new_q) || !isfinite(new_chi) || new_mu < 0 || new_q < 0 || new_mu > divergence_threshold || new_q > divergence_threshold || new_chi > divergence_threshold
-                if showprogress
+                if showprogress || verbose
                     println("Divergence (or negative values) detected in cavity $ipop: mu=$(new_mu), q=$(new_q), chi=$(new_chi).")
                 end
                 diverged = true
@@ -319,7 +330,7 @@ function run_GECaM_FP(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, F
         end
         # Check for divergence
         if diverged
-            if showprogress
+            if showprogress || verbose
                 println("Divergence detected in iteration $iter. Returning early.")
             end
             break
@@ -333,23 +344,22 @@ function run_GECaM_FP(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, F
         norm = max(norm, new_norm) # Update the norm
         # Update the averages for the next iteration
         old_avg_mu, old_avg_q, old_avg_chi = new_avg_mu, new_avg_q, new_avg_chi
-        # Print status
+        # Print progress status
         if showprogress
             println("Iteration $iter: $norm (convergence threshold $conv_threshold)")
         end
         # Check for convergence
         if norm < conv_threshold
             converged = true
-            if showprogress
-                println("Convergence achieved in iteration $iter with norm $norm (convergence threshold $conv_threshold).")
-                println("Total time taken: $(now() - start).")
-                break
+            if showprogress || verbose
+                println("Convergence achieved in iteration $iter with norm $norm (convergence threshold $conv_threshold). Total time taken: $(now() - start).")
             end
+            break
         end
     end
 
     # Check for convergence
-    if !converged && !diverged && showprogress
+    if !converged && !diverged && (showprogress || verbose)
         println("Maximum iterations reached without convergence. Final norm: $norm (convergence threshold $conv_threshold).")
     end
 
@@ -385,7 +395,7 @@ function run_GECaM_FP(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, F
         end
         # Check for divergence
         if !isfinite(marg_pop.mu_pop[ipop]) || !isfinite(marg_pop.q_pop[ipop]) || !isfinite(marg_pop.chi_pop[ipop]) || marg_pop.mu_pop[ipop] < 0 || marg_pop.q_pop[ipop] < 0 || marg_pop.mu_pop[ipop] > divergence_threshold || marg_pop.q_pop[ipop] > divergence_threshold || marg_pop.chi_pop[ipop] > divergence_threshold
-            if showprogress
+            if showprogress || verbose
                 println("Divergence (or negative values) detected in marginal node $ipop: mu=$(marg_pop.mu_pop[ipop]), q=$(marg_pop.q_pop[ipop]), chi=$(marg_pop.chi_pop[ipop]).")
             end
             diverged = true
