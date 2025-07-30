@@ -310,7 +310,7 @@ function run_GECaM_FP(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, F
                 sum_q_cav, Eps_cav, Delta_cav, Gamma_cav = sumpop(cav_pop, couplings_pop, neigh_idxs, k_cav)
                 # Compute the new cavity values
                 new_mu = f_mu(Eps_cav, Delta_cav, Gamma_cav, regularization)
-                new_q = max(regularization, f_q_dc(sum_q_cav, Delta_cav, Gamma_cav, regularization))# - new_mu ^ 2)
+                new_q = max(regularization, f_q_dc(sum_q_cav, Delta_cav, Gamma_cav, regularization) - new_mu ^ 2)
                 new_chi = f_chi(Delta_cav, Gamma_cav)
             end
             # Check for divergence
@@ -390,7 +390,7 @@ function run_GECaM_FP(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, F
             sum_q_marg, Eps_marg, Delta_marg, Gamma_marg = sumpop(cav_pop, couplings_pop, neigh_idxs, k_marg)
             # Compute the new cavity values
             marg_pop.mu_pop[ipop] = f_mu(Eps_marg, Delta_marg, Gamma_marg, regularization)
-            marg_pop.q_pop[ipop] = max(regularization, f_q_dc(sum_q_marg, Delta_marg, Gamma_marg, regularization))# - marg_pop.mu_pop[ipop] ^ 2)
+            marg_pop.q_pop[ipop] = max(regularization, f_q_dc(sum_q_marg, Delta_marg, Gamma_marg, regularization) - marg_pop.mu_pop[ipop] ^ 2)
             marg_pop.chi_pop[ipop] = f_chi(Delta_marg, Gamma_marg)
         end
         # Check for divergence
