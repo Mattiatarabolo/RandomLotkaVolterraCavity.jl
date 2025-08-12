@@ -360,7 +360,7 @@ function run_GECaM_FP(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, F
 
     # Check for convergence
     if !converged && !diverged && (showprogress || verbose)
-        println("Maximum iterations reached without convergence. Final norm: $norm (convergence threshold $conv_threshold).")
+        println("Maximum iterations reached without convergence. Final norm: $norm (convergence threshold $conv_threshold). Total time taken: $(now() - start).")
     end
 
     # Initialize the marginal population
