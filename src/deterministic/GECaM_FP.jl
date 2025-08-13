@@ -142,7 +142,7 @@ function run_GECaM_FP(model::Model{Deterministic, I, RT, MT, D}, max_iter::I, co
         elseif norm < conv_threshold
             converged = true
             if showprogress || verbose
-                println("Convergence achieved in iteration $iter with norm $norm (convergence threshold $conv_threshold). Total time taken: $(now() - start).")
+                println("Convergence achieved in iteration $iter with norm $norm (convergence threshold $conv_threshold). Total time taken: $(canonicalize(Dates.CompoundPeriod(now() - start))).")
             end
             break
         end
@@ -150,7 +150,7 @@ function run_GECaM_FP(model::Model{Deterministic, I, RT, MT, D}, max_iter::I, co
 
     # Checl for convergence
     if !converged && !diverged && (showprogress || verbose)
-        println("Maximum iterations reached without convergence. Final norm: $norm (convergence threshold $conv_threshold). Total time taken: $(now() - start).")
+        println("Maximum iterations reached without convergence. Final norm: $norm (convergence threshold $conv_threshold). Total time taken: $(canonicalize(Dates.CompoundPeriod(now() - start))).")
     end
 
     # Marginal updates
@@ -352,7 +352,7 @@ function run_GECaM_FP(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, F
         if norm < conv_threshold
             converged = true
             if showprogress || verbose
-                println("Convergence achieved in iteration $iter with norm $norm (convergence threshold $conv_threshold). Total time taken: $(now() - start).")
+                println("Convergence achieved in iteration $iter with norm $norm (convergence threshold $conv_threshold). Total time taken: $(canonicalize(Dates.CompoundPeriod(now() - start))).")
             end
             break
         end
@@ -360,7 +360,7 @@ function run_GECaM_FP(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, F
 
     # Check for convergence
     if !converged && !diverged && (showprogress || verbose)
-        println("Maximum iterations reached without convergence. Final norm: $norm (convergence threshold $conv_threshold). Total time taken: $(now() - start).")
+        println("Maximum iterations reached without convergence. Final norm: $norm (convergence threshold $conv_threshold). Total time taken: $(canonicalize(Dates.CompoundPeriod(now() - start))).")
     end
 
     # Initialize the marginal population
