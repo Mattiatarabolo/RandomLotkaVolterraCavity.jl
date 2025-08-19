@@ -136,7 +136,7 @@ function run_GECaM_FP(model::Model{Deterministic, I, RT, MT, D}, max_iter::I, co
         # Check for divergence or convergence
         if diverged
             if showprogress || verbose
-                println("Divergence detected in iteration $iter. Returning early.")
+                println("Divergence detected in iteration $iter. Returning early. Total time taken: $(canonicalize(Dates.CompoundPeriod(now() - start))).")
             end
             break
         elseif norm < conv_threshold
@@ -331,7 +331,7 @@ function run_GECaM_FP(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, F
         # Check for divergence
         if diverged
             if showprogress || verbose
-                println("Divergence detected in iteration $iter. Returning early.")
+                println("Divergence detected in iteration $iter. Returning early. Total time taken: $(canonicalize(Dates.CompoundPeriod(now() - start))).")
             end
             break
         end
