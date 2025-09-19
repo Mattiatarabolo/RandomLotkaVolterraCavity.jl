@@ -26,6 +26,18 @@ function _sample!(x::Vector{RT}, h::Vector{RT}, model::Model{Deterministic, I, R
     end
 end
 
+function _jac_ODE(Jac, u, p, t)
+    Jmat, _ = p
+    Jac .= Jmat .+ Diagonal(1 .- u)
+end
+
+function _sample_ODE!(du, u, p, t)
+    Jmat, lam = p
+    mul!(du, Jmat, u) # du = J * u
+    du .= u .* (1 .- u .+ du) # Lotka-Volterra dynamics
+    du .+= lam .+ abs.(u .+ du .- lam) # Reflective boundary condition at lam
+end
+
 #######################################################################################################
 ############################################# FP GECaM ################################################
 #######################################################################################################
