@@ -18,6 +18,7 @@ Run a Monte Carlo simulation of the model for a given time step `dt`. It uses th
 # Output
 - `traj::Matrix{RT}`: Matrix of sampled trajectories, where each column corresponds to a time point.
 - `tsave::Vector{RT}`: Vector of time points at which the trajectories are saved.
+- `convergence::Bool`: Boolean indicating whether the integration was successful (true) or diverged/failed (false).
 """
 function run_MC_ODE(model::Model{NK, I, RT, MT, D}, dt::RT; rng=Xoshiro(1234), idxs_tsave=nothing, divergence_threshold=1e6) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, MT<:AbstractMatrix{RT}, D<:Distribution}
     # Get the model parameters
@@ -46,17 +47,18 @@ function run_MC_ODE(model::Model{NK, I, RT, MT, D}, dt::RT; rng=Xoshiro(1234), i
     
     # Solve the ODE problem using a stiff solver if necessary
     sol = solve(prob, AutoTsit5(Rosenbrock23()), dt=dt, saveat=tsave, unstable_check=(dt, u, p, t) -> any(!isfinite, u) || any(u .> divergence_threshold))
+    convergence = !(sol.retcode == ReturnCode.Unstable || sol.retcode == ReturnCode.Failed)
 
     # Extract the trajectory into the storage array
     traj .= sol[:, :]
     
-    return traj, tsave
+    return traj, tsave, convergence
 end
 
 """
     run_MC_ODE(model_dis::ModelDisordered{NK, I, RT, D1, D2, D3, FT}, dt::RT; rng=Xoshiro(1234), idxs_tsave=nothing, divergence_threshold=1e6) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D1<:Distribution, D2<:Distribution, D3<:Distribution, FT<:Function}
 
-Run a Monte Carlo simulation of the disordered model for a given time step `dt` and number of trajectories `Ntraj`. It uses the `OrdinaryDiffEq.jl` package to integrate the ODEs. The function samples trajectories of the model and saves them at specified time indices.
+Run a Monte Carlo simulation of the disordered model for a given time step `dt` by sampling an instance of disorder. It uses the `OrdinaryDiffEq.jl` package to integrate the ODEs. The function samples trajectories of the model and saves them at specified time indices.
 
 # Arguments
 - `model_dis::ModelDisordered{NK, I, RT, D1, D2, D3, FT}`: The disordered model to simulate, where `NK` is the noise kind.
@@ -68,8 +70,9 @@ Run a Monte Carlo simulation of the disordered model for a given time step `dt` 
 - `divergence_threshold::RT`: Threshold for divergence detection (default 1e6).
 
 # Output
-- `trajs::Array{RT, 3}`: Array of sampled trajectories, where each slice corresponds to a trajectory and each column corresponds to a time point.
+- `traj::Matrix{RT}`: Matrix of sampled trajectories, where each column corresponds to a time point.
 - `tsave::Vector{RT}`: Vector of time points at which the trajectories are saved.
+- `convergence::Bool`: Boolean indicating whether the integration was successful (true) or diverged/failed (false).
 """
 function run_MC_ODE(model_dis::ModelDisordered{NK, I, RT, D1, D2, D3, FT}, dt::RT; rng=Xoshiro(1234), idxs_tsave=nothing, divergence_threshold=1e6) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D1<:Distribution, D2<:Distribution, D3<:Distribution, FT<:Function}
     # Get the model parameters
@@ -96,7 +99,7 @@ end
 """
     run_MC_ODE(model_dis::ModelDisorderedFC{NK, I, RT, D}, dt::RT; rng=Xoshiro(1234), idxs_tsave=nothing, divergence_threshold=1e6) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D<:Distribution}
 
-Run a Monte Carlo simulation of the disordered model for a given time step `dt`. It uses the `OrdinaryDiffEq.jl` package to integrate the ODEs. The function samples trajectories of the model and saves them at specified time indices.
+Run a Monte Carlo simulation of the  fully-connected disordered model for a given time step `dt`, by sampling an instance of disorder. It uses the `OrdinaryDiffEq.jl` package to integrate the ODEs. The function samples trajectories of the model and saves them at specified time indices.
 
 # Arguments
 - `model_dis::ModelDisorderedFC{NK, I, RT, D}`: The disordered model to simulate, where `NK` is the noise kind.
@@ -110,6 +113,7 @@ Run a Monte Carlo simulation of the disordered model for a given time step `dt`.
 # Output
 - `traj::Matrix{RT}`: Matrix of sampled trajectories, where each column corresponds to a time point.
 - `tsave::Vector{RT}`: Vector of time points at which the trajectories are saved.
+- `convergence::Bool`: Boolean indicating whether the integration was successful (true) or diverged/failed (false).
 """
 function run_MC_ODE(model_dis::ModelDisorderedFC{NK, I, RT, D}, dt::RT; rng=Xoshiro(1234), idxs_tsave=nothing, divergence_threshold=1e6) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D<:Distribution}
     # Get the model parameters

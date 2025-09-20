@@ -103,7 +103,7 @@ end
 """
     run_MC(model_dis::ModelDisordered{NK, I, RT, D1, D2, D3, FT}, dt::RT; rng=Xoshiro(1234), showprogress=false, idxs_tsave=nothing, divergence_threshold=1e6) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D1<:Distribution, D2<:Distribution, D3<:Distribution, FT<:Function}
 
-Run a Monte Carlo simulation of the disordered model for a given time step `dt` and number of trajectories `Ntraj`. The function samples trajectories of the model and saves them at specified time indices.
+Run a Monte Carlo simulation of the disordered model for a given time step `dt` by sampling an instance of disorder. The function samples trajectories of the model and saves them at specified time indices.
 
 # Arguments
 - `model_dis::ModelDisordered{NK, I, RT, D1, D2, D3, FT}`: The disordered model to simulate, where `NK` is the noise kind.
@@ -116,7 +116,7 @@ Run a Monte Carlo simulation of the disordered model for a given time step `dt` 
 - `divergence_threshold::RT`: Threshold for divergence detection (default 1e6).
 
 # Output
-- `trajs::Array{RT, 3}`: Array of sampled trajectories, where each slice corresponds to a trajectory and each column corresponds to a time point.
+- `traj::Matrix{RT}`: Matrix of sampled trajectories, where each column corresponds to a time point.
 - `tsave::Vector{RT}`: Vector of time points at which the trajectories are saved.
 """
 function run_MC(model_dis::ModelDisordered{NK, I, RT, D1, D2, D3, FT}, dt::RT; rng=Xoshiro(1234), showprogress=false, idxs_tsave=nothing, divergence_threshold=1e6) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D1<:Distribution, D2<:Distribution, D3<:Distribution, FT<:Function}
@@ -144,7 +144,7 @@ end
 """
     run_MC(model_dis::ModelDisorderedFC{NK, I, RT, D}, dt::RT; rng=Xoshiro(1234), showprogress=false, idxs_tsave=nothing, divergence_threshold=1e6) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D<:Distribution}
 
-Run a Monte Carlo simulation of the disordered model for a given time step `dt`. The function samples trajectories of the model and saves them at specified time indices.
+Run a Monte Carlo simulation of the fully-connected disordered model for a given time step `dt` by sampling an instance of disorder. The function samples trajectories of the model and saves them at specified time indices.
 
 # Arguments
 - `model_dis::ModelDisorderedFC{NK, I, RT, D}`: The disordered model to simulate, where `NK` is the noise kind.
