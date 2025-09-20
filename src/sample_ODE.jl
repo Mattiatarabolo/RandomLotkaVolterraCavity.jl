@@ -47,7 +47,7 @@ function run_MC_ODE(model::Model{NK, I, RT, MT, D}, dt::RT; rng=Xoshiro(1234), i
     
     # Solve the ODE problem using a stiff solver if necessary
     sol = solve(prob, AutoTsit5(Rosenbrock23()), dt=dt, saveat=tsave, unstable_check=(dt, u, p, t) -> any(!isfinite, u) || any(u .> divergence_threshold))
-    convergence = !(sol.retcode == ReturnCode.Unstable || sol.retcode == ReturnCode.Failed)
+    convergence = !(sol.retcode == ReturnCode.Unstable || sol.retcode == ReturnCode.Failure)
 
     # Extract the trajectory into the storage array
     traj .= sol[:, :]
