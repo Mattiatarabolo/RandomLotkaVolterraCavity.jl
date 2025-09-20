@@ -31,10 +31,6 @@ function run_MC_ODE(model::Model{NK, I, RT, MT, D}, dt::RT; rng=Xoshiro(1234), i
         filter!(n -> 0 <= n <= M, idxs_tsave) # Ensure indices are within bounds
     end
     tsave = idxs_tsave .* dt # Time points to save
-    Msave = length(tsave) # Number of time points to save
-    
-    # Initialize storage for trajectories
-    traj = zeros(RT, N, Msave)
 
     # Sample initial condition
     x0 = max.(rand(rng, model.p0, N), lam)
@@ -48,11 +44,8 @@ function run_MC_ODE(model::Model{NK, I, RT, MT, D}, dt::RT; rng=Xoshiro(1234), i
     # Solve the ODE problem using a stiff solver if necessary
     sol = solve(prob, AutoTsit5(Rosenbrock23()), dt=dt, saveat=tsave, unstable_check=(dt, u, p, t) -> any(!isfinite, u) || any(u .> divergence_threshold))
     convergence = !(sol.retcode == ReturnCode.Unstable || sol.retcode == ReturnCode.Failure)
-
-    # Extract the trajectory into the storage array
-    traj .= sol[:, :]
     
-    return traj, tsave, convergence
+    return sol[:, :], tsave, convergence
 end
 
 """
