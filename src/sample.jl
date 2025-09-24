@@ -50,6 +50,7 @@ Run a Monte Carlo simulation of the model for a given time step `dt`. The functi
 # Output
 - `traj::Matrix{RT}`: Matrix of sampled trajectories, where each column corresponds to a time point.
 - `tsave::Vector{RT}`: Vector of time points at which the trajectories are saved.
+- `convergence::Bool`: Boolean indicating whether the integration was successful (true) or diverged/failed (false).
 """
 function run_MC(model::Model{NK, I, RT, MT, D}, dt::RT; rng=Xoshiro(1234), showprogress=false, idxs_tsave=nothing, divergence_threshold=1e6) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, MT<:AbstractMatrix{RT}, D<:Distribution}
     # Get the model parameters
@@ -83,10 +84,13 @@ function run_MC(model::Model{NK, I, RT, MT, D}, dt::RT; rng=Xoshiro(1234), showp
 
     # Initialize the progress bar
     p = Progress((N ^ 2 + 1) * M; enabled=showprogress, desc="Sampling trajectory")
+
+    # Initialize convergence flag
+    convergence = true
     
     # Loop over all time steps
     for n in 1:M
-        _sample!(x, h, model, dt, divergence_threshold, rng, p) # Sample the next state using the model's sampling function
+        converged = _sample!(x, h, model, dt, divergence_threshold, rng, p) # Sample the next state using the model's sampling function
         # Save the current state if the time index is in idxs_tsave
         if n in idxs_tsave
             traj[:, save_idx] .= x
@@ -96,8 +100,14 @@ function run_MC(model::Model{NK, I, RT, MT, D}, dt::RT; rng=Xoshiro(1234), showp
         if save_idx > idxs_tsave[end] + 1
             break
         end
+        # Check for convergence
+        if !converged
+            convergence = false
+            @warn("Simulation stopped due to divergence or failure to converge.")
+            break
+        end
     end
-    return traj, tsave
+    return traj, tsave, convergence
 end
 
 """
@@ -118,6 +128,7 @@ Run a Monte Carlo simulation of the disordered model for a given time step `dt` 
 # Output
 - `traj::Matrix{RT}`: Matrix of sampled trajectories, where each column corresponds to a time point.
 - `tsave::Vector{RT}`: Vector of time points at which the trajectories are saved.
+- `convergence::Bool`: Boolean indicating whether the integration was successful (true) or diverged/failed (false).
 """
 function run_MC(model_dis::ModelDisordered{NK, I, RT, D1, D2, D3, FT}, dt::RT; rng=Xoshiro(1234), showprogress=false, idxs_tsave=nothing, divergence_threshold=1e6) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D1<:Distribution, D2<:Distribution, D3<:Distribution, FT<:Function}
     # Get the model parameters
@@ -159,6 +170,7 @@ Run a Monte Carlo simulation of the fully-connected disordered model for a given
 # Output
 - `traj::Matrix{RT}`: Matrix of sampled trajectories, where each column corresponds to a time point.
 - `tsave::Vector{RT}`: Vector of time points at which the trajectories are saved.
+- `convergence::Bool`: Boolean indicating whether the integration was successful (true) or diverged/failed (false).
 """
 function run_MC(model_dis::ModelDisorderedFC{NK, I, RT, D}, dt::RT; rng=Xoshiro(1234), showprogress=false, idxs_tsave=nothing, divergence_threshold=1e6) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D<:Distribution}
     # Get the model parameters

@@ -10,6 +10,9 @@ function _sample!(x::Vector{RT}, h::Vector{RT}, model::Model{Deterministic, I, R
     mul!(h, model.J, x)
     next!(p; step = N^2)
 
+    # Initialize convergence flag
+    convergence = true
+
     # Update the process path
     @inbounds for i in 1:N
         # Compute the term into square brackets
@@ -21,9 +24,12 @@ function _sample!(x::Vector{RT}, h::Vector{RT}, model::Model{Deterministic, I, R
         if x[i] > divergence_threshold
             @warn("Divergence detected in the trajectory.")
             x[i] = divergence_threshold # Set to threshold to avoid divergence
+            convergence = false
+            break
         end
         next!(p)
     end
+    return convergence
 end
 
 function _jac_ODE(Jac, u, p, t)
