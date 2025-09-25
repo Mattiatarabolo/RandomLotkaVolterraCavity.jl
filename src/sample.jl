@@ -23,7 +23,8 @@ J, J_prime = sample_couplings(m, sigma2, corr, 10)
 ``` 
 """
 function sample_couplings(m::RT, sigma2::RT, corr::RT, K::RT; rng::AbstractRNG=Xoshiro(1234)) where {RT<:Real}
-    u, v = randn(rng, 2)
+    u = randn(rng) 
+    v = randn(rng)
     J = m / K + sqrt(sigma2 / K) * u
     J_prime = m / K + sqrt(sigma2 / K) * (corr * u + sqrt(1 - corr ^ 2) * v)
     return J, J_prime
