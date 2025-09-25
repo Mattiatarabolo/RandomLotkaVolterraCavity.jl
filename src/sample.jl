@@ -66,7 +66,7 @@ function run_MC(model::Model{NK, I, RT, MT, D}, dt::RT; rng=Xoshiro(1234), showp
     Msave = length(tsave) # Number of time points to save
     
     # Initialize storage for trajectories
-    traj = zeros(RT, N, Msave)
+    traj = fill(NaN, RT, N, Msave)
 
     # Sample initial condition
     x0 = max.(rand(rng, model.p0, N), lam)
