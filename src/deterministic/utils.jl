@@ -46,9 +46,9 @@ end
 ################# Callback for the reflective boundary condition at lam ##################
 condition(u, t, integrator) = any(u .< integrator.p[2]) # Check if any element is below lam
 function affect!(integrator)
-    integrator.u .= max.(integrator.u, integrator.p[2]) # Reflective boundary condition at lam
+    integrator.u .= integrator.p[2] .+ abs.(integrator.u .- integrator.p[2]) # Reflective boundary condition at lam
 end
-cb = DiscreteCallback(condition, affect!)
+cb = DiscreteCallback(condition, affect!; save_positions=(false, false))
 
 #######################################################################################################
 ############################################# FP GECaM ################################################
