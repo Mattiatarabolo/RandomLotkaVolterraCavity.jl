@@ -31,6 +31,8 @@ mutable struct CavityFP{Deterministic, I<:Integer, RT<:Real}
     q::RT
     """ Cavity susceptibility """
     chi::RT
+    """ Cavity survival probability """
+    psi::RT
     """
         CavityFP{Deterministic, I, RT}(i::I, j::I)
 
@@ -45,11 +47,11 @@ mutable struct CavityFP{Deterministic, I<:Integer, RT<:Real}
     """
     function CavityFP(i::I, j::I, init_type::Symbol, mu0::RT, q0::RT, chi0::RT, rng::AbstractRNG) where {I<:Integer, RT<:Real}
         if init_type == :zero
-            return new{Deterministic, I, RT}(i, j, zero(RT), zero(RT), zero(RT))
+            return new{Deterministic, I, RT}(i, j, zero(RT), zero(RT), zero(RT), zero(RT))
         elseif init_type == :random
-            return new{Deterministic, I, RT}(i, j, rand(rng), rand(rng), zero(RT))
+            return new{Deterministic, I, RT}(i, j, rand(rng), rand(rng), zero(RT), zero(RT))
         elseif init_type == :custom
-            return new{Deterministic, I, RT}(i, j, mu0, q0, chi0)
+            return new{Deterministic, I, RT}(i, j, mu0, q0, chi0, zero(RT))
         end
     end
 end
@@ -71,6 +73,8 @@ mutable struct MarginalFP{Deterministic, I<:Integer, RT<:Real}
     q::RT
     """ Marginal susceptibility """
     chi::RT
+    """ Marginal survival probability """
+    psi::RT
     """
         MarginalFP{Deterministic, I, RT}(i::I)
 
@@ -84,11 +88,11 @@ mutable struct MarginalFP{Deterministic, I<:Integer, RT<:Real}
     """
     function MarginalFP(i::I, init_type::Symbol, mu0::RT, q0::RT, chi0::RT, rng::AbstractRNG) where {I<:Integer, RT<:Real}
         if init_type == :zero
-            return new{Deterministic, I, RT}(i, zero(RT), zero(RT), zero(RT))
+            return new{Deterministic, I, RT}(i, zero(RT), zero(RT), zero(RT), zero(RT))
         elseif init_type == :random
-            return new{Deterministic, I, RT}(i, rand(rng), rand(rng), zero(RT))
+            return new{Deterministic, I, RT}(i, rand(rng), rand(rng), zero(RT), zero(RT))
         elseif init_type == :custom
-            return new{Deterministic, I, RT}(i, mu0, q0, chi0)
+            return new{Deterministic, I, RT}(i, mu0, q0, chi0, zero(RT))
         end
     end
 end
@@ -149,6 +153,8 @@ struct PopFP{Deterministic, I<:Integer, RT<:Real}
     q_pop::Vector{RT}
     """Population of cavity susceptibilities"""
     chi_pop::Vector{RT}
+    """Population of cavity survival probabilities"""
+    psi_pop::Vector{RT}
     """
         PopFP(P::I, init_type::Symbol, mu0::RT, q0::RT, chi0::RT, rng::AbstractRNG) where {I<:Integer, RT<:Real}
 
@@ -169,11 +175,11 @@ struct PopFP{Deterministic, I<:Integer, RT<:Real}
     """
     function PopFP(P::I, init_type::Symbol, mu0::RT, q0::RT, chi0::RT, rng::AbstractRNG) where {I<:Integer, RT<:Real}
         if init_type == :zero
-            return new{Deterministic, I, RT}(zeros(RT, P), zeros(RT, P), zeros(RT, P))
+            return new{Deterministic, I, RT}(zeros(RT, P), zeros(RT, P), zeros(RT, P), zeros(RT, P))
         elseif init_type == :random
-            return new{Deterministic, I, RT}(rand(rng, RT, P), rand(rng, RT, P), zeros(RT, P))
+            return new{Deterministic, I, RT}(rand(rng, RT, P), rand(rng, RT, P), zeros(RT, P), zeros(RT, P))
         elseif init_type == :custom
-            return new{Deterministic, I, RT}(fill(mu0, P), fill(q0, P), fill(chi0, P))
+            return new{Deterministic, I, RT}(fill(mu0, P), fill(q0, P), fill(chi0, P), zeros(RT, P))
         end
     end
 end

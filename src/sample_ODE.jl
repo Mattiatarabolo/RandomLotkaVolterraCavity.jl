@@ -36,16 +36,16 @@ function run_MC_ODE(model::Model{NK, I, RT, MT, D}, dt::RT; rng=Xoshiro(1234), i
     x0 = max.(rand(rng, model.p0, N), lam)
     
     # Define the ODE problem
-    pars = (model.J, lam)
+    pars = (model.J, lam) # Parameters for the ODE function
     Jac = sparse(model.J .+ Diagonal(ones(RT, N))) # Jacobian prototype
-    f(du, u, p, t) = ODEFunction(_sample_ODE!(du, u, p, t), jac = _jac_ODE, jac_prototype = Jac)
-    prob = ODEProblem(_sample_ODE!, x0, (0.0, tsave[end]), pars, )
+    f(du, u, p, t) = ODEFunction(_sample_ODE!(du, u, p, t), jac = _jac_ODE, jac_prototype = Jac) # ODE function with Jacobian
+    prob = ODEProblem(_sample_ODE!, x0, (0.0, tsave[end]), pars) # Define the ODE problem
     
     # Solve the ODE problem using a stiff solver if necessary
-    sol = solve(prob, AutoTsit5(Rosenbrock23()), dt=dt, saveat=tsave, unstable_check=(dt, u, p, t) -> any(!isfinite, u) || any(u .> divergence_threshold))
+    sol = solve(prob, AutoTsit5(Rosenbrock23()), dt=dt, saveat=tsave, unstable_check=(dt, u, p, t) -> any(!isfinite, u) || any(u .> divergence_threshold), callback = cb)
     convergence = !(sol.retcode == ReturnCode.Unstable || sol.retcode == ReturnCode.Failure)
     
-    return sol[:, :], tsave, convergence
+    return sol[:, :], sol.t, convergence
 end
 
 """

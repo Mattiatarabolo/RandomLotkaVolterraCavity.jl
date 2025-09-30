@@ -23,6 +23,14 @@ function f_chi(Delta::RT, Gamma::RT) where {RT<:Real}
     end
 end
 
+function f_psi(Delta::RT, Gamma::RT) where {RT<:Real}
+    if Gamma > zero(RT)
+        return mod_erf(Delta)
+    else
+        return mod_erf(-Delta)
+    end
+end
+
 ###########################################################################################################
 ############################## Single instance of disordered model ########################################
 ###########################################################################################################
@@ -174,6 +182,7 @@ function run_GECaM_FP(model::Model{Deterministic, I, RT, MT, D}, max_iter::I, co
         inode.marg.mu = f_mu(Eps, Delta, Gamma, regularization)
         inode.marg.q = max(regularization, f_q_dc(sum_q, Delta, Gamma, regularization) - inode.marg.mu ^ 2)
         inode.marg.chi = f_chi(Delta, Gamma)
+        inode.marg.psi = f_psi(Delta, Gamma)
         # Check for divergence
         if !isfinite(inode.marg.mu) || !isfinite(inode.marg.q) || !isfinite(inode.marg.chi) || inode.marg.mu < 0 || inode.marg.q < 0 || inode.marg.mu > divergence_threshold || inode.marg.q > divergence_threshold || inode.marg.chi > divergence_threshold
             if showprogress || verbose
@@ -379,6 +388,7 @@ function run_GECaM_FP(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, F
             marg_pop.mu_pop[ipop] = one(RT)
             marg_pop.q_pop[ipop] = one(RT)
             marg_pop.chi_pop[ipop] = one(RT)
+            marg_pop.psi_pop[ipop] = one(RT)
         else
             # Sample k_marg neighbors indices
             neigh_idxs[1:k_marg] .= sample(rng, 1:P, k_marg, replace=false)
@@ -392,6 +402,7 @@ function run_GECaM_FP(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, F
             marg_pop.mu_pop[ipop] = f_mu(Eps_marg, Delta_marg, Gamma_marg, regularization)
             marg_pop.q_pop[ipop] = max(regularization, f_q_dc(sum_q_marg, Delta_marg, Gamma_marg, regularization) - marg_pop.mu_pop[ipop] ^ 2)
             marg_pop.chi_pop[ipop] = f_chi(Delta_marg, Gamma_marg)
+            marg_pop.psi_pop[ipop] = f_psi(Delta_marg, Gamma_marg)
         end
         # Check for divergence
         if !isfinite(marg_pop.mu_pop[ipop]) || !isfinite(marg_pop.q_pop[ipop]) || !isfinite(marg_pop.chi_pop[ipop]) || marg_pop.mu_pop[ipop] < 0 || marg_pop.q_pop[ipop] < 0 || marg_pop.mu_pop[ipop] > divergence_threshold || marg_pop.q_pop[ipop] > divergence_threshold || marg_pop.chi_pop[ipop] > divergence_threshold

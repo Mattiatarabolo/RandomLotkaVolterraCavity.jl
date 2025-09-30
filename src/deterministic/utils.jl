@@ -38,11 +38,17 @@ function _jac_ODE(Jac, u, p, t)
 end
 
 function _sample_ODE!(du, u, p, t)
-    Jmat, lam = p
+    Jmat, _ = p
     mul!(du, Jmat, u) # du = J * u
     du .= u .* (1 .- u .+ du) # Lotka-Volterra dynamics
-    du .+= lam .+ abs.(u .+ du .- lam) # Reflective boundary condition at lam
 end
+
+################# Callback for the reflective boundary condition at lam ##################
+condition(u, t, integrator) = any(u .< integrator.p[2]) # Check if any element is below lam
+function affect!(integrator)
+    integrator.u .= max.(integrator.u, integrator.p[2]) # Reflective boundary condition at lam
+end
+cb = DiscreteCallback(condition, affect!)
 
 #######################################################################################################
 ############################################# FP GECaM ################################################
