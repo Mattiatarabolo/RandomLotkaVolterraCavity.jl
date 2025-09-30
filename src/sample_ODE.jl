@@ -42,7 +42,7 @@ function run_MC_ODE(model::Model{NK, I, RT, MT, D}, dt::RT; rng=Xoshiro(1234), i
     prob = ODEProblem(fun, x0, (0.0, tsave[end]), pars) # Define the ODE problem
     
     # Solve the ODE problem using a stiff solver if necessary
-    sol = solve(prob, AutoTsit5(Rosenbrock23()), dt=dt, saveat=tsave, unstable_check=(dt, u, p, t) -> any(!isfinite, u) || any(u .> divergence_threshold), callback=cb)
+    sol = solve(prob, AutoTsit5(Rosenbrock23()), dt=dt, saveat=tsave, unstable_check=(dt, u, p, t) -> any(!isfinite, u) || any(u .> divergence_threshold), callback=cb, reltol=1e-10, abstol=1e-10)
     convergence = !(sol.retcode == ReturnCode.Unstable || sol.retcode == ReturnCode.Failure)
     
     return sol[:, :], sol.t, convergence
