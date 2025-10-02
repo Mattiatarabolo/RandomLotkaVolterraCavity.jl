@@ -73,7 +73,7 @@ function run_MC_ODE(model::Model{NK, I, RT, MT, D}, dt::RT; rng=Xoshiro(1234), i
 end
 
 """
-    run_MC_ODE(model_dis::ModelDisordered{NK, I, RT, D1, D2, D3, FT}, dt::RT; rng=Xoshiro(1234), idxs_tsave=nothing, divergence_threshold=1e6) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D1<:Distribution, D2<:Distribution, D3<:Distribution, FT<:Function}
+    run_MC_ODE(model_dis::ModelDisordered{NK, I, RT, D1, D2, D3, FT}, dt::RT; rng=Xoshiro(1234), idxs_tsave=nothing, divergence_threshold=1e6, stopateq=false, min_t_eq=1e2) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D1<:Distribution, D2<:Distribution, D3<:Distribution, FT<:Function}
 
 Run a Monte Carlo simulation of the disordered model for a given time step `dt` by sampling an instance of disorder. It uses the `OrdinaryDiffEq.jl` package to integrate the ODEs. The function samples trajectories of the model and saves them at specified time indices.
 
@@ -85,13 +85,16 @@ Run a Monte Carlo simulation of the disordered model for a given time step `dt` 
 - `rng::AbstractRNG`: Random number generator (default Xoshiro(1234)).
 - `idxs_tsave::Union{Nothing, Vector{Int}}`: Indices at which to save the trajectory (default nothing, which saves at every time step).
 - `divergence_threshold::RT`: Threshold for divergence detection (default 1e6).
+- `stopateq::Bool`: Whether to stop the simulation upon reaching a steady state (default false).
+- `min_t_eq::Union{Nothing, RT}`: Minimum time before checking for steady state (default nothing, which uses the default in `TerminateSteadyState`).
 
 # Output
 - `traj::Matrix{RT}`: Matrix of sampled trajectories, where each column corresponds to a time point.
 - `tsave::Vector{RT}`: Vector of time points at which the trajectories are saved.
 - `convergence::Bool`: Boolean indicating whether the integration was successful (true) or diverged/failed (false).
+- `t_eq::RT`: Equilibriation time. If stopateq is false, returns the final time of integration.
 """
-function run_MC_ODE(model_dis::ModelDisordered{NK, I, RT, D1, D2, D3, FT}, dt::RT; rng=Xoshiro(1234), idxs_tsave=nothing, divergence_threshold=1e6) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D1<:Distribution, D2<:Distribution, D3<:Distribution, FT<:Function}
+function run_MC_ODE(model_dis::ModelDisordered{NK, I, RT, D1, D2, D3, FT}, dt::RT; rng=Xoshiro(1234), idxs_tsave=nothing, divergence_threshold=1e6, stopateq=false, min_t_eq=1e2) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D1<:Distribution, D2<:Distribution, D3<:Distribution, FT<:Function}
     # Get the model parameters
     N, K, M, lam, p0, noise = model_dis.N, model_dis.K, model_dis.M, model_dis.lam, model_dis.p0, model_dis.noise
     m, sigma2, corr = model_dis.m, model_dis.sigma2, model_dis.corr
@@ -109,12 +112,12 @@ function run_MC_ODE(model_dis::ModelDisordered{NK, I, RT, D1, D2, D3, FT}, dt::R
     # Generate the local model instance
     model = Model(N, M, Jmat, lam, p0, noise)
 
-    run_MC_ODE(model, dt; rng=rng, idxs_tsave=idxs_tsave, divergence_threshold=divergence_threshold)
+    run_MC_ODE(model, dt; rng=rng, idxs_tsave=idxs_tsave, divergence_threshold=divergence_threshold, stopateq=stopateq, min_t_eq=min_t_eq)
 end
 
 
 """
-    run_MC_ODE(model_dis::ModelDisorderedFC{NK, I, RT, D}, dt::RT; rng=Xoshiro(1234), idxs_tsave=nothing, divergence_threshold=1e6) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D<:Distribution}
+    run_MC_ODE(model_dis::ModelDisorderedFC{NK, I, RT, D}, dt::RT; rng=Xoshiro(1234), idxs_tsave=nothing, divergence_threshold=1e6, stopateq=false, min_t_eq=1e2) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D<:Distribution}
 
 Run a Monte Carlo simulation of the  fully-connected disordered model for a given time step `dt`, by sampling an instance of disorder. It uses the `OrdinaryDiffEq.jl` package to integrate the ODEs. The function samples trajectories of the model and saves them at specified time indices.
 
@@ -126,13 +129,16 @@ Run a Monte Carlo simulation of the  fully-connected disordered model for a give
 - `rng::AbstractRNG`: Random number generator (default Xoshiro(1234)).
 - `idxs_tsave::Union{Nothing, Vector{Int}}`: Indices at which to save the trajectory (default nothing, which saves at every time step).
 - `divergence_threshold::RT`: Threshold for divergence detection (default 1e6).
+- `stopateq::Bool`: Whether to stop the simulation upon reaching a steady state (default false).
+- `min_t_eq::Union{Nothing, RT}`: Minimum time before checking for steady state (default nothing, which uses the default in `TerminateSteadyState`).
 
 # Output
 - `traj::Matrix{RT}`: Matrix of sampled trajectories, where each column corresponds to a time point.
 - `tsave::Vector{RT}`: Vector of time points at which the trajectories are saved.
 - `convergence::Bool`: Boolean indicating whether the integration was successful (true) or diverged/failed (false).
+- `t_eq::RT`: Equilibriation time. If stopateq is false, returns the final time of integration.
 """
-function run_MC_ODE(model_dis::ModelDisorderedFC{NK, I, RT, D}, dt::RT; rng=Xoshiro(1234), idxs_tsave=nothing, divergence_threshold=1e6) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D<:Distribution}
+function run_MC_ODE(model_dis::ModelDisorderedFC{NK, I, RT, D}, dt::RT; rng=Xoshiro(1234), idxs_tsave=nothing, divergence_threshold=1e6, stopateq=false, min_t_eq=1e2) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D<:Distribution}
     # Get the model parameters
     N, M, lam, p0, noise = model_dis.N, model_dis.M, model_dis.lam, model_dis.p0, model_dis.noise
     m, sigma2, corr = model_dis.m, model_dis.sigma2, model_dis.corr
@@ -148,5 +154,5 @@ function run_MC_ODE(model_dis::ModelDisorderedFC{NK, I, RT, D}, dt::RT; rng=Xosh
     # Generate the local model instance
     model = Model(N, M, Jmat, lam, p0, noise)
 
-    run_MC_ODE(model, dt; rng=rng, idxs_tsave=idxs_tsave, divergence_threshold=divergence_threshold)
+    run_MC_ODE(model, dt; rng=rng, idxs_tsave=idxs_tsave, divergence_threshold=divergence_threshold, stopateq=stopateq, min_t_eq=min_t_eq)
 end
