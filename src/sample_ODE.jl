@@ -2,7 +2,7 @@
 #################################################################################################################################
 
 """
-    run_MC_ODE(model::Model{NK, I, RT, MT, D}, dt::RT; rng=Xoshiro(1234), idxs_tsave=nothing, divergence_threshold=1e6) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, MT<:AbstractMatrix{RT}, D<:Distribution}
+    run_MC_ODE(model::Model{NK, I, RT, MT, D}, dt::RT; rng=Xoshiro(1234), idxs_tsave=nothing, divergence_threshold=1e6, stopateq=false, min_t_eq=nothing) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, MT<:AbstractMatrix{RT}, D<:Distribution}
 
 Run a Monte Carlo simulation of the model for a given time step `dt`. It uses the `OrdinaryDiffEq.jl` package to integrate the ODEs. The function samples trajectories of the model and saves them at specified time indices.
 
@@ -14,13 +14,15 @@ Run a Monte Carlo simulation of the model for a given time step `dt`. It uses th
 - `rng::AbstractRNG`: Random number generator (default Xoshiro(1234)).
 - `idxs_tsave::Union{Nothing, Vector{Int}}`: Indices at which to save the trajectory (default nothing, which saves at every time step).
 - `divergence_threshold::RT`: Threshold for divergence detection (default 1e6).
+- `stopateq::Bool`: Whether to stop the simulation upon reaching a steady state (default false).
+- `min_t_eq::Union{Nothing, RT}`: Minimum time before checking for steady state (default nothing, which uses the default in `TerminateSteadyState`).
 
 # Output
 - `traj::Matrix{RT}`: Matrix of sampled trajectories, where each column corresponds to a time point.
 - `tsave::Vector{RT}`: Vector of time points at which the trajectories are saved.
 - `convergence::Bool`: Boolean indicating whether the integration was successful (true) or diverged/failed (false).
 """
-function run_MC_ODE(model::Model{NK, I, RT, MT, D}, dt::RT; rng=Xoshiro(1234), idxs_tsave=nothing, divergence_threshold=1e6) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, MT<:AbstractMatrix{RT}, D<:Distribution}
+function run_MC_ODE(model::Model{NK, I, RT, MT, D}, dt::RT; rng=Xoshiro(1234), idxs_tsave=nothing, divergence_threshold=1e6, stopateq=false, min_t_eq=nothing) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, MT<:AbstractMatrix{RT}, D<:Distribution}
     # Get the model parameters
     N, M, lam = model.N, model.M, model.lam
 
@@ -32,6 +34,9 @@ function run_MC_ODE(model::Model{NK, I, RT, MT, D}, dt::RT; rng=Xoshiro(1234), i
     end
     tsave = idxs_tsave .* dt # Time points to save
 
+    # Initialize the array to store the trajectory
+    traj = fill(NaN, N, length(tsave))
+
     # Sample initial condition
     x0 = max.(rand(rng, model.p0, N), lam)
     
@@ -40,12 +45,30 @@ function run_MC_ODE(model::Model{NK, I, RT, MT, D}, dt::RT; rng=Xoshiro(1234), i
     Jac = sparse(model.J .+ Diagonal(ones(RT, N))) # Jacobian prototype
     fun = ODEFunction(_sample_ODE!; jac=_jac_ODE, jac_prototype=Jac) # ODE function with Jacobian
     prob = ODEProblem(fun, x0, (0.0, tsave[end]), pars) # Define the ODE problem
+
+    # Define the callback
+    if stopateq
+        term_ss = TerminateSteadyState(1e-10, 1e-10; min_t=min_t_eq)
+        cb = CallbackSet(hard_wall, term_ss)
+    else
+        cb = hard_wall
+    end
     
     # Solve the ODE problem using a stiff solver if necessary
     sol = solve(prob, AutoTsit5(Rosenbrock23()), dt=dt, saveat=tsave, unstable_check=(dt, u, p, t) -> any(!isfinite, u) || any(u .> divergence_threshold), callback=cb, reltol=1e-10, abstol=1e-10)
     convergence = !(sol.retcode == ReturnCode.Unstable || sol.retcode == ReturnCode.Failure)
-    
-    return sol[:, :], sol.t, convergence
+
+    # Complete the output if stopped at steady state
+    if sol.retcode == ReturnCode.Terminated && stopateq
+        @info "Stopped at steady state at t = $(sol.t[end])"
+        t_convergence_idx = length(sol.t)
+        traj[:, 1:t_convergence_idx] .= sol[:, :]
+        traj[:, t_convergence_idx+1:end] .= sol.u[end] # Fill the rest with the last value
+    else
+        traj[:, :] .= sol[:, :]
+    end
+
+    return traj, tsave, convergence, sol.retcode
 end
 
 """

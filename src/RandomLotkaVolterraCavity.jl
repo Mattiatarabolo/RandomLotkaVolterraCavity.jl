@@ -9,7 +9,7 @@ $(EXPORTS)
 module RandomLotkaVolterraCavity
     using DocStringExtensions, Dates, ProgressMeter
     using Random, SparseArrays, LinearAlgebra, StatsBase, Distributions, Graphs, SpecialFunctions
-    using OrdinaryDiffEq
+    using OrdinaryDiffEq, DiffEqCallbacks
 
     export AbstractNoiseKind, ModelDisordered, ModelDisorderedFC, Model, sample_couplings, run_MC, run_MC_ODE
     export Deterministic, CavityFP, MarginalFP, NodeFP, PopFP, PopJ, run_GECaM_FP, analytic_FC
