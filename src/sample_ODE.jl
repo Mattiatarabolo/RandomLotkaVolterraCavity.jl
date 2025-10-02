@@ -21,6 +21,7 @@ Run a Monte Carlo simulation of the model for a given time step `dt`. It uses th
 - `traj::Matrix{RT}`: Matrix of sampled trajectories, where each column corresponds to a time point.
 - `tsave::Vector{RT}`: Vector of time points at which the trajectories are saved.
 - `convergence::Bool`: Boolean indicating whether the integration was successful (true) or diverged/failed (false).
+- `t_eq::RT`: Equilibriation time. If stopateq is false, returns the final time of integration.
 """
 function run_MC_ODE(model::Model{NK, I, RT, MT, D}, dt::RT; rng=Xoshiro(1234), idxs_tsave=nothing, divergence_threshold=1e6, stopateq=false, min_t_eq=nothing) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, MT<:AbstractMatrix{RT}, D<:Distribution}
     # Get the model parameters
@@ -68,7 +69,7 @@ function run_MC_ODE(model::Model{NK, I, RT, MT, D}, dt::RT; rng=Xoshiro(1234), i
         traj[:, :] .= sol[:, :]
     end
 
-    return traj, tsave, convergence, sol.retcode
+    return traj, tsave, convergence, sol.t[end]
 end
 
 """
