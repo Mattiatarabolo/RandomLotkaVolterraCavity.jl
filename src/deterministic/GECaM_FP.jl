@@ -1,3 +1,10 @@
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#################                             Full version, q ≠ 0                            #################
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+
 # Placeholder update functions, where you can optimize the internal logic of f_mu, f_q, f_chi
 function f_mu(Eps::RT, Delta::RT, Gamma::RT, regularization::RT) where {RT<:Real}
     if Gamma > zero(RT)
@@ -415,5 +422,344 @@ function run_GECaM_FP(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, F
         end
     end
 
+    return cav_pop, marg_pop, converged, diverged
+end
+
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#################                          Simplified version, q = 0                         #################
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+# Placeholder update functions, where you can optimize the internal logic of
+function f_x_q0(sum_x::RT, Gamma::RT, regularization::RT) where {RT<:Real}
+    return max(regularization, (1 + sum_x) / Gamma)
+end
+
+function f_chi_q0(sum_x::RT, Gamma::RT) where {RT<:Real}
+    return 1 / Gamma * max(zero(RT), (1 - sum_x) / Gamma)
+end
+
+###########################################################################################################
+############################## Single instance of disordered model ########################################
+###########################################################################################################
+
+function run_GECaM_FP_q0(model::Model{Deterministic, I, RT, MT, D}, max_iter::I, conv_threshold::RT, damp::RT; init_type::Symbol=:random, x0::RT=0.0, chi0::RT=0.0, rng::AbstractRNG=Xoshiro(1234), showprogress::Bool=false, verbose::Bool=false, divergence_threshold::RT=1e6, regularization::RT=-Inf) where {I<:Integer, RT<:Real, MT<:AbstractMatrix{RT}, D<:Distribution}
+    @assert max_iter > 0 "Maximum number of iterations must be greater than zero."
+    @assert conv_threshold > 0 "Convergence threshold must be greater than zero."
+    @assert damp >= 0 && damp <= 1 "Damping factor must be in the range [0, 1]."
+    @assert init_type in [:zero, :random, :custom] "Initialization type must be one of: :zero, :random, :custom."
+    @assert divergence_threshold > 0 "Divergence threshold must be greater than zero."
+
+    # If showprogress is true, verbose is also true
+    if showprogress
+        verbose = true
+    end
+
+    # Initialize the nodes
+    nodes = init_nodes_q0(model, init_type, x0, chi0, rng)
+    N = length(nodes) # Number of nodes in the model
+
+    # Initialize convergence check
+    converged = false
+    diverged = false
+    norm = zero(RT) # Initialize the norm for convergence check
+
+    # Cavity iterations
+    if showprogress || verbose
+        println("Starting cavity iterations...")
+        start = now()
+    end
+    for iter in 1:max_iter
+        # Reset the norm for this iteration
+        norm = zero(RT)
+        # Iterate over the nodes
+        for inode in shuffle(rng, nodes)
+            i = inode.i # Node index
+            # Sum over neighbors' contributions
+            sum_x = zero(RT)
+            sum_chi = zero(RT)
+            for (jidx, jicav) in enumerate(inode.cavs)
+                j = inode.neighs[jidx]
+                sum_x += model.J[i, j] * jicav.x # Sum of cavity means
+                sum_chi += model.J[i, j] * model.J[j, i] * jicav.chi # Sum of cavity susceptibilities
+            end
+            # Iterate over the cavities
+            for (jidx, jicav) in enumerate(inode.cavs)
+                j = inode.neighs[jidx] # Neighbor index
+                iidx = nodes[j].neighs_idx[i] # Get the index of node i in the neighbors of node j
+                # Compute sum_x, Gamma
+                sum_x_cav = sum_x - model.J[i, j] * jicav.x
+                Gamma_cav = 1 - sum_chi - model.J[i, j] * model.J[j, i] * jicav.chi
+                # Compute the new cavity values
+                new_x = f_x_q0(sum_x_cav, Gamma_cav, regularization)
+                new_chi = f_chi_q0(sum_x_cav, Gamma_cav)
+                # Check for divergence
+                if !isfinite(new_x) || !isfinite(new_chi) || new_x > divergence_threshold || new_chi > divergence_threshold
+                    if showprogress || verbose
+                        println("Divergence (or negative values) detected in cavity ($i, $j): x=$(new_x), chi=$(new_chi).")
+                    end
+                    diverged = true
+                    converged = false
+                    break
+                end
+                # Compute the norm for convergence check
+                old_x, old_chi = nodes[j].cavs[iidx].x, nodes[j].cavs[iidx].chi
+                new_norm = damp * max(abs(new_x - old_x), abs(new_chi - old_chi))
+                norm = max(norm, new_norm) # Update the norm
+                # Update the cavity values with damping
+                nodes[j].cavs[iidx].x = damp * new_x + (1 - damp) * old_x
+                nodes[j].cavs[iidx].chi = damp * new_chi + (1 - damp) * old_chi
+            end
+            # Check for divergence 
+            if diverged
+                break
+            end
+        end
+        # Print progress status
+        if showprogress
+            println("Iteration $iter: $norm (convergence threshold $conv_threshold)")
+        end
+        # Check for divergence or convergence
+        if diverged
+            if showprogress || verbose
+                println("Divergence detected in iteration $iter. Returning early. Total time taken: $(canonicalize(Dates.CompoundPeriod(now() - start))).")
+            end
+            break
+        elseif norm < conv_threshold
+            converged = true
+            if showprogress || verbose
+                println("Convergence achieved in iteration $iter with norm $norm (convergence threshold $conv_threshold). Total time taken: $(canonicalize(Dates.CompoundPeriod(now() - start))).")
+            end
+            break
+        end
+    end
+    # Checl for convergence
+    if !converged && !diverged && (showprogress || verbose)
+        println("Maximum iterations reached without convergence. Final norm: $norm (convergence threshold $conv_threshold). Total time taken: $(canonicalize(Dates.CompoundPeriod(now() - start))).")
+    end
+    # Marginal updates
+    for inode in nodes
+        i = inode.i # Node index
+        # Sum over neighbors' contributions
+        sum_x = zero(RT)
+        sum_chi = zero(RT)
+        for (jidx, jicav) in enumerate(inode.cavs)
+            j = inode.neighs[jidx]
+            sum_x += model.J[i, j] * jicav.x # Sum of cavity means
+            sum_chi += model.J[i, j] * model.J[j, i] * jicav.chi # Sum of cavity susceptibilities
+        end
+        # Compute sum_x, Gamma
+        Gamma_marg = 1 - sum_chi
+        # Compute the new marginal values
+        inode.marg.x = f_x_q0(sum_x, Gamma_marg, regularization)
+        inode.marg.chi = f_chi_q0(sum_x, Gamma_marg)
+        inode.marg.psi = inode.marg.chi # In this simplified case, psi = chi
+        # Check for divergence
+        if !isfinite(inode.marg.x) || !isfinite(inode.marg.chi) || inode.marg.x > divergence_threshold || inode.marg.chi > divergence_threshold
+            if showprogress || verbose
+                println("Divergence (or negative values) detected in marginal node $(inode.i): x=$(inode.marg.x), chi=$(inode.marg.chi).")
+            end
+            diverged = true
+            converged = false
+            break
+        end
+    end
+    return nodes, converged, diverged
+end
+
+
+###########################################################################################################
+################################# Average over disordered model ###########################################
+###########################################################################################################
+
+function sumpop_q0(pop::PopFP_q0{Deterministic, I, RT}, couplings_pop::PopJ{Deterministic, I, RT}, neigh_idxs::Vector{I}, k_cav::I) where {I<:Integer, RT<:Real}
+    # Initialize sums
+    sum_x = zero(RT)
+    Gamma = one(RT)
+    # Iterate over the neighbors' indices
+    for j in neigh_idxs[1:k_cav]
+        J = couplings_pop.J_pop[j]
+        Jp = couplings_pop.Jp_pop[j]
+        x_j = pop.x_pop[j]
+        chi_j = pop.chi_pop[j]
+        # Update sums
+        sum_x += J * x_j
+        Gamma -= J * Jp * chi_j
+    end
+    return sum_x, Gamma
+end
+
+"""
+    run_GECaM_FP_q0(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, FT}, P::I, max_iter::I, conv_threshold::RT, damp::RT; init_type::Symbol=:random, x0::RT=0.0, chi0::RT=0.0, rng::AbstractRNG=Xoshiro(1234), showprogress::Bool=false, verbose::Bool=false, divergence_threshold::RT=1e6, regularization::RT=-Inf) where {I<:Integer, RT<:Real, D1<:Distribution, D2<:Distribution, D3<:Distribution, FT<:Function}
+
+Run the Gaussian Expansion Cavity Method (GECaM) fixed-point algorithm for a disordered model with deterministic dynamics and simplified case where correlations are set to zero (q = 0). It computes through a population dynamics algorithm the fixed-point values of the mean abundances and susceptibilities averaged over the disordered model.
+
+# Arguments
+- `model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, FT}`: The disordered model to run the GECaM on.
+- `P::I`: Number of elements of the populations.
+- `max_iter::I`: Maximum number of iterations to run.
+- `conv_threshold::RT`: Convergence threshold for the algorithm.
+- `damp::RT`: Damping factor for the updates.
+
+# Keyword Arguments
+- `init_type::Symbol`: Initialization type for the nodes. Supported types are `:zero`, `:random`, and `:custom` (default is `:random`).
+- `x0::RT`: Initial value for the mean (used if `init_type` is `:custom`, default is `0.0`).
+- `chi0::RT`: Initial value for the susceptibility (used if `init_type` is `:custom`, default is `0.0`).
+- `rng::AbstractRNG`: Random number generator for random initialization (default is `Xoshiro(1234)`).
+- `showprogress::Bool`: Whether to show progress during the iterations (default is `false`).
+- `verbose::Bool`: Whether to print detailed information during the iterations (default is `false`).
+- `divergence_threshold::RT`: Threshold for detecting divergence in the algorithm (default  is `1e6`).
+- `regularization::RT`: Regularization parameter to avoid negative values (default is `-Inf`).
+
+# Output
+- `cav_pop::PopFP_q0{I, RT}`: The cavity population with updated values after running the GECaM fixed-point algorithm.
+- `marg_pop::PopFP_q0{I, RT}`: The marginal population with updated values after running the GECaM fixed-point algorithm.
+- `converged::Bool`: Whether the algorithm converged within the specified number of iterations.
+- `diverged::Bool`: Whether the algorithm diverged during the iterations.
+"""
+function run_GECaM_FP_q0(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, FT}, P::I, max_iter::I, conv_threshold::RT, damp::RT; init_type::Symbol=:random, x0::RT=0.0, chi0::RT=0.0, rng::AbstractRNG=Xoshiro(1234), showprogress::Bool=false, verbose::Bool=false, divergence_threshold::RT=1e6, regularization::RT=-Inf) where {I<:Integer, RT<:Real, D1<:Distribution, D2<:Distribution, D3<:Distribution, FT<:Function}
+    @assert max_iter > 0 "Maximum number of iterations must be greater than zero."
+    @assert conv_threshold > 0 "Convergence threshold must be greater than zero."
+    @assert damp >= 0 && damp <= 1 "Damping factor must be in the range [0, 1]."
+    @assert init_type in [:zero, :random, :custom] "Initialization type must be one of: :zero, :random, :custom."
+    @assert divergence_threshold > 0 "Divergence threshold must be greater than zero."
+
+    # If showprogress is true, verbose is also true
+    if showprogress
+        verbose = true
+    end
+
+    m, sigma2, corr, K = model.m, model.sigma2, model.corr, model.K # Default values from the model
+
+    # Initialize the cavity populations
+    cav_pop = PopFP_q0(P, init_type, x0, chi0, rng)
+    couplings_pop = PopJ(P, m, sigma2, corr, K, rng)
+
+    # Initialize cavity neighbors indices
+    k_cav_max = maximum(model.deg_cav_pdf) # Maximum number of neighbors in the cavity
+    neigh_idxs = zeros(I, k_cav_max) # Neighbors indices
+
+    # Initialize means of the populations for convergence check
+    old_avg_x = mean(cav_pop.x_pop)
+    old_avg_chi = mean(cav_pop.chi_pop)
+
+    # Initialize convergence check
+    converged = false
+    diverged = false
+    norm = zero(RT) # Initialize the norm for convergence check
+
+    # Cavity iterations
+    if showprogress || verbose
+        println("Starting cavity iterations...")
+        start = now()
+    end
+
+    # Cavity iterations
+    for iter in 1:max_iter
+        # Reset the norm for this iteration
+        norm = zero(RT)
+        # Iterate over the population
+        for ipop in shuffle(rng, 1:P)
+            # Sample the degree of the cavity
+            k_cav = rand(rng, model.deg_cav_pdf)
+            # Check if degree is zero
+            if k_cav == 0
+                new_x = one(RT)
+                new_chi = one(RT)
+            else
+                # Sample k_cav neighbors indices
+                neigh_idxs[1:k_cav] .= sample(rng, 1:P, k_cav, replace=false)
+                # Sample k_cav pairs of correlated couplings
+                for j in neigh_idxs[1:k_cav]
+                    couplings_pop.J_pop[j], couplings_pop.Jp_pop[j] = sample_couplings(m, sigma2, corr, K; rng=rng)
+                end
+                # Compute the sums over neighbors' contributions
+                sum_x_cav, Gamma_cav = sumpop_q0(cav_pop, couplings_pop, neigh_idxs, k_cav)
+                # Compute the new cavity values
+                new_x = f_x_q0(sum_x_cav, Gamma_cav, regularization)
+                new_chi = f_chi_q0(sum_x_cav, Gamma_cav)
+            end
+            # Check for divergence
+            if !isfinite(new_x) || !isfinite(new_chi) || new_x > divergence_threshold || new_chi > divergence_threshold
+                if showprogress || verbose
+                    println("Divergence (or negative values) detected in cavity $ipop: x=$(new_x), chi=$(new_chi).")
+                end
+                diverged = true
+                converged = false
+                break
+            end
+            # Update the cavity values with damping
+            old_x, old_chi = cav_pop.x_pop[ipop], cav_pop.chi_pop[ipop]
+            cav_pop.x_pop[ipop] = damp * new_x + (1 - damp) * old_x
+            cav_pop.chi_pop[ipop] = damp * new_chi + (1 - damp) * old_chi
+        end
+        # Check for divergence
+        if diverged
+            if showprogress || verbose
+                println("Divergence detected in iteration $iter. Returning early. Total time taken: $(canonicalize(Dates.CompoundPeriod(now() - start))).")
+            end
+            break
+        end
+        # Compute the averages for convergence check
+        new_avg_x = mean(cav_pop.x_pop)
+        new_avg_chi = mean(cav_pop.chi_pop)
+        # Compute the norm for convergence check
+        new_norm = max(abs(new_avg_x - old_avg_x), abs(new_avg_chi - old_avg_chi))
+        norm = max(norm, new_norm) # Update the norm
+        # Update the averages for the next iteration
+        old_avg_x, old_avg_chi = new_avg_x, new_avg_chi
+        # Print progress status
+        if showprogress
+            println("Iteration $iter: $norm (convergence threshold $conv_threshold)")
+        end
+        # Check for convergence
+        if norm < conv_threshold
+            converged = true
+            if showprogress || verbose
+                println("Convergence achieved in iteration $iter with norm $norm (convergence threshold $conv_threshold). Total time taken: $(canonicalize(Dates.CompoundPeriod(now() - start))).")
+            end
+            break
+        end
+    end
+    # Check for convergence
+    if !converged && !diverged && (showprogress || verbose)
+        println("Maximum iterations reached without convergence. Final norm: $norm (convergence threshold $conv_threshold). Total time taken: $(canonicalize(Dates.CompoundPeriod(now() - start))).")
+    end
+    # Initialize the marginal population
+    marg_pop = PopFP_q0(P, init_type, x0, chi0, rng)
+    # Initialize marginal neighbors indices
+    k_marg_max = maximum(model.deg_pdf) # Maximum number of neighbors in the cavity
+    neigh_idxs = zeros(I, k_marg_max) # Neighbors indices
+    # Marginal updates
+    for ipop in 1:P
+        # Sample the degree of the marginal
+        k_marg = rand(rng, model.deg_pdf)
+        # Check if degree is zero
+        if k_marg == 0
+            marg_pop.x_pop[ipop] = one(RT)
+            marg_pop.chi_pop[ipop] = one(RT)
+        else
+            # Sample k_marg neighbors indices
+            neigh_idxs[1:k_marg] .= sample(rng, 1:P, k_marg, replace=false)
+            # Sample k_marg pairs of correlated couplings
+            for j in neigh_idxs[1:k_marg]
+                couplings_pop.J_pop[j], couplings_pop.Jp_pop[j] = sample_couplings(m, sigma2, corr, K; rng=rng)
+            end
+            # Compute the sums over neighbors' contributions
+            sum_x_marg, Gamma_marg = sumpop_q0(cav_pop, couplings_pop, neigh_idxs, k_marg)
+            # Compute the new cavity values
+            marg_pop.x_pop[ipop] = f_x_q0(sum_x_marg, Gamma_marg, regularization)
+            marg_pop.chi_pop[ipop] = f_chi_q0(sum_x_marg, Gamma_marg)
+        end
+        # Check for divergence
+        if !isfinite(marg_pop.x_pop[ipop]) || !isfinite(marg_pop.chi_pop[ipop]) || marg_pop.x_pop[ipop] > divergence_threshold || marg_pop.chi_pop[ipop] > divergence_threshold
+            if showprogress || verbose
+                println("Divergence (or negative values) detected in marginal node $ipop: x=$(marg_pop.x_pop[ipop]), chi=$(marg_pop.chi_pop[ipop]).")
+            end
+            diverged = true
+            converged = false
+            break
+        end
+    end
     return cav_pop, marg_pop, converged, diverged
 end

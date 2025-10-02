@@ -63,6 +63,16 @@ function init_nodes(model::Model{Deterministic, I, RT, MT, D}, init_type::Symbol
     return nodes
 end
 
+function init_nodes_q0(model::Model{Deterministic, I, RT, MT, D}, init_type::Symbol, x0::RT, chi0::RT, rng::AbstractRNG) where {I<:Integer, RT<:Real, MT<:AbstractMatrix{RT}, D<:Distribution}
+    nodes = Vector{NodeFP_q0{Deterministic, I, RT}}(undef, model.N)
+    for i in 1:model.N
+        neighs = findall(model.J[i, :] .!= 0) # Find neighbors of node i
+        nodes[i] = NodeFP_q0(i, neighs, init_type, x0, chi0, rng) # Initialize the node with its neighbors
+    end
+    return nodes
+end
+
+
 # Shortname for functions used in cavity update
 function gauss(x::RT) where {RT<:Real}
     return exp( - x^2 / 2) / sqrt( 2 * pi )
@@ -71,7 +81,6 @@ end
 function mod_erf(x::RT) where {RT<:Real}
     return ( 1 + erf(x / sqrt(2)) ) / 2
 end
-
 
 ### Function to solve the fully-connected system (DMFT solution)
 # Define the functions
