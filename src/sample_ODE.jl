@@ -55,14 +55,10 @@ function run_MC_ODE(model::Model{NK, I, RT, MT, D}, dt::RT; rng=Xoshiro(1234), t
     # Complete the output if stopped at steady state
     if sol.retcode == ReturnCode.Terminated && stopateq
         @info "Stopped at steady state at t = $(sol.t[end])"
-        t_convergence_idx = length(sol.t)
-        if t_convergence_idx > 1
-            traj[:, 1:t_convergence_idx] .= sol[:, :]
-            traj[:, t_convergence_idx+1:end] .= sol.u[end] # Fill the rest with the last value
-        else
-            traj[:, 1] .= sol.u[end] # If only one time point, fill with the last value
-            traj[:, 2:end] .= sol.u[end]
-        end
+        t_conv = sol.t[end]
+        t_conv_idx = findfirst(x-> x >= t_conv, tsave)
+        traj[:, 1:t_conv_idx] .= sol[:, 1:t_conv_idx]
+        traj[:, t_conv_idx+1:end] .= sol[:, end] # Fill the rest with the last value
     else
         traj[:, :] .= sol[:, :]
     end
