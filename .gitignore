@@ -1,3 +1,4 @@
+.Manifest.tomls
 *.jl.*.cov
 *.jl.cov
 *.jl.mem
