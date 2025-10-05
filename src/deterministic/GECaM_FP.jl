@@ -553,7 +553,6 @@ function run_GECaM_FP_q0(model::Model{Deterministic, I, RT, MT, D}, max_iter::I,
         # Compute the new marginal values
         inode.marg.x = f_x_q0(sum_x, Gamma_marg, regularization)
         inode.marg.chi = f_chi_q0(sum_x, Gamma_marg)
-        inode.marg.psi = inode.marg.chi # In this simplified case, psi = chi
         # Check for divergence
         if !isfinite(inode.marg.x) || !isfinite(inode.marg.chi) || inode.marg.x > divergence_threshold || inode.marg.chi > divergence_threshold
             if showprogress || verbose

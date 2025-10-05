@@ -23,10 +23,46 @@ J, J_prime = sample_couplings(m, sigma2, corr, 10)
 ``` 
 """
 function sample_couplings(m::RT, sigma2::RT, corr::RT, K::RT; rng::AbstractRNG=Xoshiro(1234)) where {RT<:Real}
-    u = randn(rng) 
-    v = randn(rng)
-    J = m / K + sqrt(sigma2 / K) * u
-    J_prime = m / K + sqrt(sigma2 / K) * (corr * u + sqrt(1 - corr ^ 2) * v)
+    u = randn(rng, RT)
+    v = randn(rng, RT)
+    scale = sqrt(sigma2 / K)
+    mean = m / K
+    J = mean + scale * u
+    J_prime = mean + scale * (corr * u + sqrt(one(RT) - corr ^ 2) * v)
+    return J, J_prime
+end
+
+"""
+    sample_couplings(m::RT, sigma2::RT, corr::RT, K::IT; rng::AbstractRNG=Xoshiro(1234)) where {RT<:Real, IT<:Integer}
+
+Sample couplings J and Jp from a bivariate Gaussian distribution with means `m/K`, variances `sigma2/K`, and correlation `corr`.
+
+# Arguments
+- `m::RT`: Mean value of the couplings.
+- `sigma2::RT`: Variance of the couplings.
+- `corr::RT`: Correlation between the couplings.
+- `K::IT`: Average degree of the network (used for proper scaling of the couplings).
+
+# Returns
+- `J::RT`: Sampled coupling J.
+- `Jp::RT`: Sampled coupling J'.
+
+# Example
+```julia
+m = 1.0
+sigma2 = 0.1
+corr = 0.5
+
+J, J_prime = sample_couplings(m, sigma2, corr, 10)
+``` 
+"""
+function sample_couplings(m::RT, sigma2::RT, corr::RT, K::IT; rng::AbstractRNG=Xoshiro(1234)) where {RT<:Real, IT<:Integer}
+    u = randn(rng, RT)
+    v = randn(rng, RT)
+    scale = sqrt(sigma2 / K)
+    mean = m / K
+    J = mean + scale * u
+    J_prime = mean + scale * (corr * u + sqrt(one(RT) - corr ^ 2) * v)
     return J, J_prime
 end
 
