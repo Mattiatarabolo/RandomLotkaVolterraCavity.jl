@@ -2,7 +2,7 @@
 #################################################################################################################################
 
 """
-    run_MC_ODE(model::Model{NK, I, RT, MT, D}, dt::RT; rng=Xoshiro(1234), tsave=nothing, divergence_threshold=1e6, stopateq=false, eq_threshold=1e-10, min_t_eq=nothing, verbose=false, integrator="adaptive") where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, MT<:AbstractMatrix{RT}, D<:Distribution}
+    run_MC_ODE(model::Model{NK, I, RT, MT, D}, dt::RT; rng=Xoshiro(1234), tsave=nothing, divergence_threshold=1e6, stopateq=false, eq_threshold=1e-10, min_t_eq=nothing, verbose=false, integrator="adaptive", x0=nothing, tinit=0.0) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, MT<:AbstractMatrix{RT}, D<:Distribution}
 
 Run a Monte Carlo simulation of the model for a given time step `dt`. It uses the `OrdinaryDiffEq.jl` package to integrate the ODEs. The function samples trajectories of the model and saves them at specified time indices.
 
@@ -19,6 +19,8 @@ Run a Monte Carlo simulation of the model for a given time step `dt`. It uses th
 - `min_t_eq::Union{Nothing, RT}`: Minimum time before checking for steady state (default nothing, which uses the default in `TerminateSteadyState`).
 - `verbose::Bool`: Whether to print information about the simulation (default false).
 - `integrator::String`: Choice of integrator, either "adaptive" (automatically switching integrator with adaptive time-step) or "fixed" (Euler integrator with fixed time-step) (default "adaptive").
+- `x0::Union{Nothing, Vector{RT}}`: Initial condition for the ODE (default nothing, which samples a random initial condition).
+- `tinit::RT`: Initial time for the ODE integration (default 0.0).
 
 # Output
 - `traj::Matrix{RT}`: Matrix of sampled trajectories, where each column corresponds to a time point.
@@ -26,21 +28,25 @@ Run a Monte Carlo simulation of the model for a given time step `dt`. It uses th
 - `convergence::Bool`: Boolean indicating whether the integration was successful (true) or diverged/failed (false).
 - `t_eq::RT`: Equilibriation time. If stopateq is false, returns the final time of integration.
 """
-function run_MC_ODE(model::Model{NK, I, RT, MT, D}, dt::RT; rng=Xoshiro(1234), tsave=nothing, divergence_threshold=1e6, stopateq=false, eq_threshold=1e-10, min_t_eq=nothing, verbose=false, integrator="adaptive") where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, MT<:AbstractMatrix{RT}, D<:Distribution}
+function run_MC_ODE(model::Model{NK, I, RT, MT, D}, dt::RT; rng=Xoshiro(1234), tsave=nothing, divergence_threshold=1e6, stopateq=false, eq_threshold=1e-10, min_t_eq=nothing, verbose=false, integrator="adaptive", x0=nothing, tinit=0.0) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, MT<:AbstractMatrix{RT}, D<:Distribution}
     # Get the model parameters
     N, M, lam = model.N, model.M, model.lam
 
     # Initialize the array to store the trajectory
     traj = fill(NaN, N, length(tsave))
 
-    # Sample initial condition
-    x0 = max.(rand(rng, model.p0, N), lam)
-    
+    # Sample initial condition if not provided
+    if x0 === nothing
+        x0 = max.(rand(rng, model.p0, N), lam)
+    elseif length(x0) != N
+        throw(ArgumentError("Initial condition x0 must have length N = $N"))
+    end
+
     # Define the ODE problem
     pars = (model.J, lam) # Parameters for the ODE function
     Jac = sparse(model.J .+ Diagonal(ones(RT, N))) # Jacobian prototype
     fun = ODEFunction(_sample_ODE!; jac=_jac_ODE, jac_prototype=Jac) # ODE function with Jacobian
-    prob = ODEProblem(fun, x0, (0.0, tsave[end]), pars) # Define the ODE problem
+    prob = ODEProblem(fun, x0, (tinit, tsave[end]), pars) # Define the ODE problem
 
     # Define the callback
     if stopateq
@@ -75,7 +81,7 @@ function run_MC_ODE(model::Model{NK, I, RT, MT, D}, dt::RT; rng=Xoshiro(1234), t
 end
 
 """
-    run_MC_ODE(model_dis::ModelDisordered{NK, I, RT, D1, D2, D3, FT}, dt::RT; rng=Xoshiro(1234), tsave=nothing, divergence_threshold=1e6, stopateq=false, eq_threshold=1e-10, min_t_eq=1e2, verbose=false, integrator="adaptive") where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D1<:Distribution, D2<:Distribution, D3<:Distribution, FT<:Function}
+    run_MC_ODE(model_dis::ModelDisordered{NK, I, RT, D1, D2, D3, FT}, dt::RT; rng=Xoshiro(1234), tsave=nothing, divergence_threshold=1e6, stopateq=false, eq_threshold=1e-10, min_t_eq=1e2, verbose=false, integrator="adaptive", x0=nothing, tinit=0.0) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D1<:Distribution, D2<:Distribution, D3<:Distribution, FT<:Function}
 
 Run a Monte Carlo simulation of the disordered model for a given time step `dt` by sampling an instance of disorder. It uses the `OrdinaryDiffEq.jl` package to integrate the ODEs. The function samples trajectories of the model and saves them at specified time indices.
 
@@ -92,6 +98,8 @@ Run a Monte Carlo simulation of the disordered model for a given time step `dt` 
 - `min_t_eq::Union{Nothing, RT}`: Minimum time before checking for steady state (default nothing, which uses the default in `TerminateSteadyState`).
 - `verbose::Bool`: Whether to print information about the simulation (default false).
 - `integrator::String`: Choice of integrator, either "adaptive" (automatically switching integrator with adaptive time-step) or "fixed" (Euler integrator with fixed time-step) (default "adaptive").
+- `x0::Union{Nothing, Vector{RT}}`: Initial condition for the ODE (default nothing, which samples a random initial condition).
+- `tinit::RT`: Initial time for the ODE integration (default 0.0).
 
 # Output
 - `traj::Matrix{RT}`: Matrix of sampled trajectories, where each column corresponds to a time point.
@@ -99,7 +107,7 @@ Run a Monte Carlo simulation of the disordered model for a given time step `dt` 
 - `convergence::Bool`: Boolean indicating whether the integration was successful (true) or diverged/failed (false).
 - `t_eq::RT`: Equilibriation time. If stopateq is false, returns the final time of integration.
 """
-function run_MC_ODE(model_dis::ModelDisordered{NK, I, RT, D1, D2, D3, FT}, dt::RT; rng=Xoshiro(1234), tsave=nothing, divergence_threshold=1e6, stopateq=false, eq_threshold=1e-10, min_t_eq=1e2, verbose=false, integrator="adaptive") where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D1<:Distribution, D2<:Distribution, D3<:Distribution, FT<:Function}
+function run_MC_ODE(model_dis::ModelDisordered{NK, I, RT, D1, D2, D3, FT}, dt::RT; rng=Xoshiro(1234), tsave=nothing, divergence_threshold=1e6, stopateq=false, eq_threshold=1e-10, min_t_eq=1e2, verbose=false, integrator="adaptive", x0=nothing, tinit=0.0) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D1<:Distribution, D2<:Distribution, D3<:Distribution, FT<:Function}
     # Get the model parameters
     N, K, M, lam, p0, noise = model_dis.N, model_dis.K, model_dis.M, model_dis.lam, model_dis.p0, model_dis.noise
     m, sigma2, corr = model_dis.m, model_dis.sigma2, model_dis.corr
@@ -117,12 +125,12 @@ function run_MC_ODE(model_dis::ModelDisordered{NK, I, RT, D1, D2, D3, FT}, dt::R
     # Generate the local model instance
     model = Model(N, M, Jmat, lam, p0, noise)
 
-    run_MC_ODE(model, dt; rng=rng, tsave=tsave, divergence_threshold=divergence_threshold, stopateq=stopateq, eq_threshold=eq_threshold, min_t_eq=min_t_eq, verbose=verbose, integrator=integrator)
+    run_MC_ODE(model, dt; rng=rng, tsave=tsave, divergence_threshold=divergence_threshold, stopateq=stopateq, eq_threshold=eq_threshold, min_t_eq=min_t_eq, verbose=verbose, integrator=integrator, x0=x0, tinit=tinit)
 end
 
 
 """
-    run_MC_ODE(model_dis::ModelDisorderedFC{NK, I, RT, D}, dt::RT; rng=Xoshiro(1234), tsave=nothing, divergence_threshold=1e6, stopateq=false, eq_threshold=1e-10, min_t_eq=1e2, verbose=false, integrator="adaptive") where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D<:Distribution}
+    run_MC_ODE(model_dis::ModelDisorderedFC{NK, I, RT, D}, dt::RT; rng=Xoshiro(1234), tsave=nothing, divergence_threshold=1e6, stopateq=false, eq_threshold=1e-10, min_t_eq=1e2, verbose=false, integrator="adaptive", x0=nothing, tinit=0.0) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D<:Distribution}
 
 Run a Monte Carlo simulation of the  fully-connected disordered model for a given time step `dt`, by sampling an instance of disorder. It uses the `OrdinaryDiffEq.jl` package to integrate the ODEs. The function samples trajectories of the model and saves them at specified time indices.
 
@@ -139,6 +147,8 @@ Run a Monte Carlo simulation of the  fully-connected disordered model for a give
 - `min_t_eq::Union{Nothing, RT}`: Minimum time before checking for steady state (default nothing, which uses the default in `TerminateSteadyState`).
 - `verbose::Bool`: Whether to print information about the simulation (default false).
 - `integrator::String`: Choice of integrator, either "adaptive" (automatically switching integrator with adaptive time-step) or "fixed" (Euler integrator with fixed time-step) (default "adaptive").
+- `x0::Union{Nothing, Vector{RT}}`: Initial condition for the ODE (default nothing, which samples a random initial condition).
+- `tinit::RT`: Initial time for the ODE integration (default 0.0).
 
 # Output
 - `traj::Matrix{RT}`: Matrix of sampled trajectories, where each column corresponds to a time point.
@@ -146,7 +156,7 @@ Run a Monte Carlo simulation of the  fully-connected disordered model for a give
 - `convergence::Bool`: Boolean indicating whether the integration was successful (true) or diverged/failed (false).
 - `t_eq::RT`: Equilibriation time. If stopateq is false, returns the final time of integration.
 """
-function run_MC_ODE(model_dis::ModelDisorderedFC{NK, I, RT, D}, dt::RT; rng=Xoshiro(1234), tsave=nothing, divergence_threshold=1e6, stopateq=false, eq_threshold=1e-10, min_t_eq=1e2, verbose=false, integrator="adaptive") where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D<:Distribution}
+function run_MC_ODE(model_dis::ModelDisorderedFC{NK, I, RT, D}, dt::RT; rng=Xoshiro(1234), tsave=nothing, divergence_threshold=1e6, stopateq=false, eq_threshold=1e-10, min_t_eq=1e2, verbose=false, integrator="adaptive", x0=nothing, tinit=0.0) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D<:Distribution}
     # Get the model parameters
     N, M, lam, p0, noise = model_dis.N, model_dis.M, model_dis.lam, model_dis.p0, model_dis.noise
     m, sigma2, corr = model_dis.m, model_dis.sigma2, model_dis.corr
@@ -162,5 +172,5 @@ function run_MC_ODE(model_dis::ModelDisorderedFC{NK, I, RT, D}, dt::RT; rng=Xosh
     # Generate the local model instance
     model = Model(N, M, Jmat, lam, p0, noise)
 
-    run_MC_ODE(model, dt; rng=rng, tsave=tsave, divergence_threshold=divergence_threshold, stopateq=stopateq, eq_threshold=eq_threshold, min_t_eq=min_t_eq, verbose=verbose, integrator=integrator)
+    run_MC_ODE(model, dt; rng=rng, tsave=tsave, divergence_threshold=divergence_threshold, stopateq=stopateq, eq_threshold=eq_threshold, min_t_eq=min_t_eq, verbose=verbose, integrator=integrator, x0=x0, tinit=tinit)
 end
