@@ -6,4 +6,3 @@ RandomLotkaVolterraCavity = "e0cb5db2-507d-4330-81aa-f62556075e35"
 [compat]
 DocStringExtensions = "0.9.5"
 Documenter = "1.14.1"
-RandomLotkaVolterraCavity = "1.0.0-DEV"
