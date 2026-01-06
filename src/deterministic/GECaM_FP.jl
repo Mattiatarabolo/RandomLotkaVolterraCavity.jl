@@ -114,30 +114,33 @@ function run_GECaM_FP(model::Model{Deterministic, I, RT, MT, D}, max_iter::I, co
                 j = inode.neighs[jidx] # Neighbor index
                 iidx = nodes[j].neighs_idx[i] # Get the index of node i in the neighbors of node j
                 # Compute Eps, Delta, Gamma
-                Eps = sqrt(sum_q - model.J[i, j] ^ 2 * jicav.q)
-                Delta = (1 + sum_mu - model.J[i, j] * jicav.mu) / Eps
-                Gamma = 1 - sum_chi - model.J[i, j] * model.J[j, i] * jicav.chi
+                sum_mu_cav = sum_mu - model.J[i, j] * jicav.mu
+                sum_q_cav = sum_q - model.J[i, j] ^ 2 * jicav.q
+                sum_chi_cav = sum_chi - model.J[i, j] * model.J[j, i] * jicav.chi
+                Eps_cav = sqrt(sum_q_cav)
+                Delta_cav = (1 + sum_mu_cav) / Eps_cav
+                Gamma_cav = 1 - sum_chi_cav
                 # Compute the new cavity values
-                new_mu = f_mu(Eps, Delta, Gamma, regularization)
-                new_q = max(regularization, f_q_dc(sum_q, Delta, Gamma, regularization) - new_mu ^ 2)
-                new_chi = f_chi(Delta, Gamma)
+                new_mu_cav = f_mu(Eps_cav, Delta_cav, Gamma_cav, regularization)
+                new_q_cav = max(regularization, f_q_dc(sum_q_cav, Delta_cav, Gamma_cav, regularization) - new_mu_cav ^ 2)
+                new_chi_cav = f_chi(Delta_cav, Gamma_cav)
                 # Check for divergence
-                if !isfinite(new_mu) || !isfinite(new_q) || !isfinite(new_chi) || new_mu < 0 || new_q < 0 || new_mu > divergence_threshold || new_q > divergence_threshold || new_chi > divergence_threshold
+                if !isfinite(new_mu_cav) || !isfinite(new_q_cav) || !isfinite(new_chi_cav) || new_mu_cav < 0 || new_q_cav < 0 || new_mu_cav > divergence_threshold || new_q_cav > divergence_threshold || new_chi_cav > divergence_threshold
                     if showprogress || verbose
-                        println("Divergence (or negative values) detected in cavity ($i, $j): mu=$(new_mu), q=$(new_q), chi=$(new_chi).")
+                        println("Divergence (or negative values) detected in cavity ($i, $j): mu=$(new_mu_cav), q=$(new_q_cav), chi=$(new_chi_cav).")
                     end
                     diverged = true
                     converged = false
                     break
                 end
                 # Compute the norm for convergence check
-                old_mu, old_q, old_chi = nodes[j].cavs[iidx].mu, nodes[j].cavs[iidx].q, nodes[j].cavs[iidx].chi
-                new_norm = damp * max(abs(new_mu - old_mu), abs(new_q - old_q), abs(new_chi - old_chi))
+                old_mu_cav, old_q_cav, old_chi_cav = nodes[j].cavs[iidx].mu, nodes[j].cavs[iidx].q, nodes[j].cavs[iidx].chi
+                new_norm = damp * max(abs(new_mu_cav - old_mu_cav), abs(new_q_cav - old_q_cav), abs(new_chi_cav - old_chi_cav))
                 norm = max(norm, new_norm) # Update the norm
                 # Update the cavity values with damping
-                nodes[j].cavs[iidx].mu = damp * new_mu + (1 - damp) * old_mu
-                nodes[j].cavs[iidx].q = damp * new_q + (1 - damp) * old_q
-                nodes[j].cavs[iidx].chi = damp * new_chi + (1 - damp) * old_chi
+                nodes[j].cavs[iidx].mu = damp * new_mu_cav + (1 - damp) * old_mu_cav
+                nodes[j].cavs[iidx].q = damp * new_q_cav + (1 - damp) * old_q_cav
+                nodes[j].cavs[iidx].chi = damp * new_chi_cav + (1 - damp) * old_chi_cav
             end
             # Check for divergence 
             if diverged
