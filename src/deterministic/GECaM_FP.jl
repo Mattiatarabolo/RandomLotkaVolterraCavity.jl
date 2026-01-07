@@ -438,10 +438,6 @@ function f_x_q0(sum_x::RT, Gamma::RT, regularization::RT) where {RT<:Real}
     return max(regularization, (1 + sum_x) / Gamma)
 end
 
-function f_chi_q0(sum_x::RT, Gamma::RT) where {RT<:Real}
-    return 1 / Gamma * max(zero(RT), (1 - sum_x) / Gamma)
-end
-
 ###########################################################################################################
 ############################## Single instance of disordered model ########################################
 ###########################################################################################################
@@ -492,26 +488,27 @@ function run_GECaM_FP_q0(model::Model{Deterministic, I, RT, MT, D}, max_iter::I,
                 iidx = nodes[j].neighs_idx[i] # Get the index of node i in the neighbors of node j
                 # Compute sum_x, Gamma
                 sum_x_cav = sum_x - model.J[i, j] * jicav.x
-                Gamma_cav = 1 - sum_chi - model.J[i, j] * model.J[j, i] * jicav.chi
+                sum_chi_cav = sum_chi - model.J[i, j] * model.J[j, i] * jicav.chi
+                Gamma_cav = 1 - sum_chi_cav
                 # Compute the new cavity values
-                new_x = f_x_q0(sum_x_cav, Gamma_cav, regularization)
-                new_chi = f_chi_q0(sum_x_cav, Gamma_cav)
+                new_x_cav = f_x_q0(sum_x_cav, Gamma_cav, regularization)
+                new_chi_cav = 1 / Gamma_cav
                 # Check for divergence
-                if !isfinite(new_x) || !isfinite(new_chi) || new_x > divergence_threshold || new_chi > divergence_threshold
+                if !isfinite(new_x_cav) || !isfinite(new_chi_cav) || new_x_cav > divergence_threshold || new_chi_cav > divergence_threshold
                     if showprogress || verbose
-                        println("Divergence (or negative values) detected in cavity ($i, $j): x=$(new_x), chi=$(new_chi).")
+                        println("Divergence (or negative values) detected in cavity ($i, $j): x=$(new_x_cav), chi=$(new_chi_cav).")
                     end
                     diverged = true
                     converged = false
                     break
                 end
                 # Compute the norm for convergence check
-                old_x, old_chi = nodes[j].cavs[iidx].x, nodes[j].cavs[iidx].chi
-                new_norm = damp * max(abs(new_x - old_x), abs(new_chi - old_chi))
+                old_x_cav, old_chi_cav = nodes[j].cavs[iidx].x, nodes[j].cavs[iidx].chi
+                new_norm = damp * max(abs(new_x_cav - old_x_cav), abs(new_chi_cav - old_chi_cav))
                 norm = max(norm, new_norm) # Update the norm
                 # Update the cavity values with damping
-                nodes[j].cavs[iidx].x = damp * new_x + (1 - damp) * old_x
-                nodes[j].cavs[iidx].chi = damp * new_chi + (1 - damp) * old_chi
+                nodes[j].cavs[iidx].x = damp * new_x_cav + (1 - damp) * old_x_cav
+                nodes[j].cavs[iidx].chi = damp * new_chi_cav + (1 - damp) * old_chi_cav
             end
             # Check for divergence 
             if diverged
@@ -552,10 +549,10 @@ function run_GECaM_FP_q0(model::Model{Deterministic, I, RT, MT, D}, max_iter::I,
             sum_chi += model.J[i, j] * model.J[j, i] * jicav.chi # Sum of cavity susceptibilities
         end
         # Compute sum_x, Gamma
-        Gamma_marg = 1 - sum_chi
+        Gamma = 1 - sum_chi
         # Compute the new marginal values
-        inode.marg.x = f_x_q0(sum_x, Gamma_marg, regularization)
-        inode.marg.chi = f_chi_q0(sum_x, Gamma_marg)
+        inode.marg.x = f_x_q0(sum_x, Gamma, regularization)
+        inode.marg.chi = 1 / Gamma
         # Check for divergence
         if !isfinite(inode.marg.x) || !isfinite(inode.marg.chi) || inode.marg.x > divergence_threshold || inode.marg.chi > divergence_threshold
             if showprogress || verbose
@@ -577,7 +574,7 @@ end
 function sumpop_q0(pop::PopFP_q0{Deterministic, I, RT}, couplings_pop::PopJ{Deterministic, I, RT}, neigh_idxs::Vector{I}, k_cav::I) where {I<:Integer, RT<:Real}
     # Initialize sums
     sum_x = zero(RT)
-    Gamma = one(RT)
+    sum_chi = zero(RT)
     # Iterate over the neighbors' indices
     for j in neigh_idxs[1:k_cav]
         J = couplings_pop.J_pop[j]
@@ -586,8 +583,9 @@ function sumpop_q0(pop::PopFP_q0{Deterministic, I, RT}, couplings_pop::PopJ{Dete
         chi_j = pop.chi_pop[j]
         # Update sums
         sum_x += J * x_j
-        Gamma -= J * Jp * chi_j
+        sum_chi += J * Jp * chi_j
     end
+    Gamma = 1 - sum_chi
     return sum_x, Gamma
 end
 
@@ -679,7 +677,7 @@ function run_GECaM_FP_q0(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3
                 sum_x_cav, Gamma_cav = sumpop_q0(cav_pop, couplings_pop, neigh_idxs, k_cav)
                 # Compute the new cavity values
                 new_x = f_x_q0(sum_x_cav, Gamma_cav, regularization)
-                new_chi = f_chi_q0(sum_x_cav, Gamma_cav)
+                new_chi = 1 / Gamma_cav
             end
             # Check for divergence
             if !isfinite(new_x) || !isfinite(new_chi) || new_x > divergence_threshold || new_chi > divergence_threshold
@@ -751,7 +749,7 @@ function run_GECaM_FP_q0(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3
             sum_x_marg, Gamma_marg = sumpop_q0(cav_pop, couplings_pop, neigh_idxs, k_marg)
             # Compute the new cavity values
             marg_pop.x_pop[ipop] = f_x_q0(sum_x_marg, Gamma_marg, regularization)
-            marg_pop.chi_pop[ipop] = f_chi_q0(sum_x_marg, Gamma_marg)
+            marg_pop.chi_pop[ipop] =  1 / Gamma_marg
         end
         # Check for divergence
         if !isfinite(marg_pop.x_pop[ipop]) || !isfinite(marg_pop.chi_pop[ipop]) || marg_pop.x_pop[ipop] > divergence_threshold || marg_pop.chi_pop[ipop] > divergence_threshold
