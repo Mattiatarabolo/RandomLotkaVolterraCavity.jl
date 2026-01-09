@@ -6,27 +6,27 @@
 
 
 # Placeholder update functions, where you can optimize the internal logic of f_mu, f_q, f_chi
-function f_mu(Eps::RT, Delta::RT, Gamma::RT, regularization::RT) where {RT<:Real}
+function f_mu(sum_mu::RT, Eps::RT, Delta::RT, Gamma::RT, regularization::RT) where {RT<:Real}
     if Gamma > zero(RT)
-        return max(regularization, Eps / Gamma * (Delta * mod_erf(Delta) + gauss(Delta)))
+        return max(regularization, 1 / max(regularization, Gamma) * ((1 + sum_mu) * mod_erf(Delta) + Eps * gauss(Delta)))
     else
-        return max(regularization, Eps / Gamma * (Delta * mod_erf(-Delta) - gauss(-Delta)))
+        return max(regularization, - 1 / max(regularization, -Gamma) * ((1 + sum_mu) * mod_erf(-Delta) - Eps * gauss(-Delta)))
     end
 end
 
-function f_q_dc(sum_q::RT, Delta::RT, Gamma::RT, regularization::RT) where {RT<:Real}
+function f_q_dc(sum_mu::RT, sum_q::RT, Delta::RT, Gamma::RT, regularization::RT) where {RT<:Real}
     if Gamma > zero(RT)
-        return max(regularization, sum_q / Gamma ^ 2 * ((1 + Delta ^ 2) * mod_erf(Delta) + Delta * gauss(Delta)))
+        return max(regularization, 1 / max(regularization, Gamma) ^ 2 * ((sum_q + sum_mu^2) * mod_erf(Delta) + sum_mu * gauss(Delta)))
     else
-        return max(regularization, sum_q / Gamma ^ 2 * ((1 + Delta ^ 2) * mod_erf(-Delta) - Delta * gauss(-Delta)))
+        return max(regularization, 1 / max(regularization, -Gamma) ^ 2 * ((sum_q + sum_mu^2) * mod_erf(-Delta) - sum_mu * gauss(-Delta)))
     end
 end
 
-function f_chi(Delta::RT, Gamma::RT) where {RT<:Real}
+function f_chi(Delta::RT, Gamma::RT, regularization::RT) where {RT<:Real}
     if Gamma > zero(RT)
-        return 1 / Gamma * mod_erf(Delta)
+        return 1 / max(regularization, Gamma) * mod_erf(Delta)
     else
-        return 1 / Gamma * mod_erf(-Delta)
+        return - 1 / max(regularization, - Gamma) * mod_erf(-Delta)
     end
 end
 
@@ -121,9 +121,9 @@ function run_GECaM_FP(model::Model{Deterministic, I, RT, MT, D}, max_iter::I, co
                 Delta_cav = (1 + sum_mu_cav) / Eps_cav
                 Gamma_cav = 1 - sum_chi_cav
                 # Compute the new cavity values
-                new_mu_cav = f_mu(Eps_cav, Delta_cav, Gamma_cav, regularization)
-                new_q_cav = max(regularization, f_q_dc(sum_q_cav, Delta_cav, Gamma_cav, regularization) - new_mu_cav ^ 2)
-                new_chi_cav = f_chi(Delta_cav, Gamma_cav)
+                new_mu_cav = f_mu(sum_mu_cav, Eps_cav, Delta_cav, Gamma_cav, regularization)
+                new_q_cav = max(regularization, f_q_dc(sum_mu_cav, sum_q_cav, Delta_cav, Gamma_cav, regularization) - new_mu_cav ^ 2)
+                new_chi_cav = f_chi(Delta_cav, Gamma_cav, regularization)
                 # Check for divergence
                 if !isfinite(new_mu_cav) || !isfinite(new_q_cav) || !isfinite(new_chi_cav) || new_mu_cav < 0 || new_q_cav < 0 || new_mu_cav > divergence_threshold || new_q_cav > divergence_threshold || new_chi_cav > divergence_threshold
                     if showprogress || verbose
@@ -189,9 +189,9 @@ function run_GECaM_FP(model::Model{Deterministic, I, RT, MT, D}, max_iter::I, co
         Delta = (1 + sum_mu) / Eps
         Gamma = 1 - sum_chi
         # Compute the new marginal values
-        inode.marg.mu = f_mu(Eps, Delta, Gamma, regularization)
-        inode.marg.q = max(regularization, f_q_dc(sum_q, Delta, Gamma, regularization) - inode.marg.mu ^ 2)
-        inode.marg.chi = f_chi(Delta, Gamma)
+        inode.marg.mu = f_mu(sum_mu, Eps, Delta, Gamma, regularization)
+        inode.marg.q = max(regularization, f_q_dc(sum_mu, sum_q, Delta, Gamma, regularization) - inode.marg.mu ^ 2)
+        inode.marg.chi = f_chi(Delta, Gamma, regularization)
         inode.marg.psi = f_psi(Delta, Gamma)
         # Check for divergence
         if !isfinite(inode.marg.mu) || !isfinite(inode.marg.q) || !isfinite(inode.marg.chi) || inode.marg.mu < 0 || inode.marg.q < 0 || inode.marg.mu > divergence_threshold || inode.marg.q > divergence_threshold || inode.marg.chi > divergence_threshold
@@ -235,7 +235,7 @@ function sumpop(pop::PopFP{Deterministic, I, RT}, couplings_pop::PopJ{Determinis
     Delta = (1 + sum_mu) / Eps
     Gamma = 1 - sum_chi
 
-    return sum_q, Eps, Delta, Gamma
+    return sum_mu, sum_q, Eps, Delta, Gamma
 end
 
 """
@@ -326,11 +326,11 @@ function run_GECaM_FP(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, F
                     couplings_pop.J_pop[j], couplings_pop.Jp_pop[j] = sample_couplings(m, sigma2, corr, K; rng=rng)
                 end
                 # Compute the sums over neighbors' contributions
-                sum_q_cav, Eps_cav, Delta_cav, Gamma_cav = sumpop(cav_pop, couplings_pop, neigh_idxs, k_cav)
+                sum_mu_cav, sum_q_cav, Eps_cav, Delta_cav, Gamma_cav = sumpop(cav_pop, couplings_pop, neigh_idxs, k_cav)
                 # Compute the new cavity values
-                new_mu = f_mu(Eps_cav, Delta_cav, Gamma_cav, regularization)
-                new_q = max(regularization, f_q_dc(sum_q_cav, Delta_cav, Gamma_cav, regularization) - new_mu ^ 2)
-                new_chi = f_chi(Delta_cav, Gamma_cav)
+                new_mu = f_mu(sum_mu_cav, Eps_cav, Delta_cav, Gamma_cav, regularization)
+                new_q = max(regularization, f_q_dc(sum_mu_cav, sum_q_cav, Delta_cav, Gamma_cav, regularization) - new_mu ^ 2)
+                new_chi = f_chi(Delta_cav, Gamma_cav, regularization)
             end
             # Check for divergence
             if !isfinite(new_mu) || !isfinite(new_q) || !isfinite(new_chi) || new_mu < 0 || new_q < 0 || new_mu > divergence_threshold || new_q > divergence_threshold || new_chi > divergence_threshold
@@ -407,11 +407,11 @@ function run_GECaM_FP(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, F
                 couplings_pop.J_pop[j], couplings_pop.Jp_pop[j] = sample_couplings(m, sigma2, corr, K; rng=rng)
             end
             # Compute the sums over neighbors' contributions
-            sum_q_marg, Eps_marg, Delta_marg, Gamma_marg = sumpop(cav_pop, couplings_pop, neigh_idxs, k_marg)
+            sum_mu_marg, sum_q_marg, Eps_marg, Delta_marg, Gamma_marg = sumpop(cav_pop, couplings_pop, neigh_idxs, k_marg)
             # Compute the new cavity values
-            marg_pop.mu_pop[ipop] = f_mu(Eps_marg, Delta_marg, Gamma_marg, regularization)
-            marg_pop.q_pop[ipop] = max(regularization, f_q_dc(sum_q_marg, Delta_marg, Gamma_marg, regularization) - marg_pop.mu_pop[ipop] ^ 2)
-            marg_pop.chi_pop[ipop] = f_chi(Delta_marg, Gamma_marg)
+            marg_pop.mu_pop[ipop] = f_mu(sum_mu_marg, Eps_marg, Delta_marg, Gamma_marg, regularization)
+            marg_pop.q_pop[ipop] = max(regularization, f_q_dc(sum_mu_marg, sum_q_marg, Delta_marg, Gamma_marg, regularization) - marg_pop.mu_pop[ipop] ^ 2)
+            marg_pop.chi_pop[ipop] = f_chi(Delta_marg, Gamma_marg, regularization)
             marg_pop.psi_pop[ipop] = f_psi(Delta_marg, Gamma_marg)
         end
         # Check for divergence
