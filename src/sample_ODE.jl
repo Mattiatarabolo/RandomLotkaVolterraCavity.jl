@@ -45,7 +45,7 @@ function run_MC_ODE(model::Model{NK, I, RT, MT, D}, dt::RT; rng=Xoshiro(1234), t
     # Define the ODE problem
     pars = (model.J, lam) # Parameters for the ODE function
     Jac = sparse(model.J .+ Diagonal(ones(RT, N))) # Jacobian prototype
-    fun = ODEFunction(_sample_ODE!; jac=_jac_ODE, jac_prototype=Jac) # ODE function with Jacobian
+    fun = ODEFunction(_sample_ODE!; jac_prototype=Jac) # ODE function with Jacobian
     prob = ODEProblem(fun, x0, (tinit, tsave[end]), pars) # Define the ODE problem
 
     # Define the callback
