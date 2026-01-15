@@ -59,7 +59,7 @@ end
 """
     CavityFP_q0{Deterministic, I, RT}
 
-A type that represents a cavity in the fixed-point algorithm for deterministic dynamics, using the simplified version where q = 0.
+A type that represents a cavity in the fixed-point algorithm for deterministic dynamics, using the simplified version where q = χ = 0, i.e. a first order approximation of the cavity messages.
 
 # Fields
 $(TYPEDFIELDS)
@@ -71,27 +71,28 @@ mutable struct CavityFP_q0{Deterministic, I<:Integer, RT<:Real}
     j::I
     """ Cavity abundance """
     x::RT
-    """ Cavity susceptibility """
-    chi::RT
     """
-        CavityFP_q0{Deterministic, I, RT}(i::I, j::I)
+        CavityFP_q0{Deterministic, I, RT}(i::I, j::I, init_type::Symbol, x0::RT, rng::AbstractRNG) where {I<:Integer, RT<:Real}
 
     Create a new dixed-point cavity with the specified node index and neighbor index.
 
     # Arguments
     - `i::I`: Node index.
     - `j::I`: Neighbor index.
+    - `init_type::Symbol`: Initialization type, can be `:zero`, `:random`, or `:custom`.
+    - `x0::RT`: Initial abundance value (used if `init_type` is `:custom`).
+    - `rng::AbstractRNG`: Random number generator.
 
     # Output
     - `CavityFP_q0`: Cavity with the specified node and neighbor indices.
     """
-    function CavityFP_q0(i::I, j::I, init_type::Symbol, x0::RT, chi0::RT, rng::AbstractRNG) where {I<:Integer, RT<:Real}
+    function CavityFP_q0(i::I, j::I, init_type::Symbol, x0::RT, rng::AbstractRNG) where {I<:Integer, RT<:Real}
         if init_type == :zero
-            return new{Deterministic, I, RT}(i, j, zero(RT), zero(RT))
+            return new{Deterministic, I, RT}(i, j, zero(RT))
         elseif init_type == :random
-            return new{Deterministic, I, RT}(i, j, rand(rng), zero(RT))
+            return new{Deterministic, I, RT}(i, j, rand(rng))
         elseif init_type == :custom
-            return new{Deterministic, I, RT}(i, j, x0, chi0)
+            return new{Deterministic, I, RT}(i, j, x0)
         end
     end
 end
@@ -140,7 +141,7 @@ end
 """
     MarginalFP_q0{Deterministic, I, RT}
 
-A type that represents a marginal in the fixed-point algorithm for deterministic dynamics, using the simplified version where q = 0.
+A type that represents a marginal in the fixed-point algorithm for deterministic dynamics, using the simplified version where q = χ = 0, i.e. a first order approximation of the cavity messages.
 
 # Fields
 $(TYPEDFIELDS)
@@ -150,26 +151,27 @@ mutable struct MarginalFP_q0{Deterministic, I<:Integer, RT<:Real}
     i::I
     """ Marginal abundance """
     x::RT
-    """ Marginal susceptibility """
-    chi::RT
     """
-        MarginalFP_q0{Deterministic, I, RT}(i::I)
+        MarginalFP_q0{Deterministic, I, RT}(i::I, init_type::Symbol, x0::RT, rng::AbstractRNG) where {I<:Integer, RT<:Real}
 
     Create a new fixed-point marginal with the specified node index.
 
     # Arguments
     - `i::I`: Node index.
+    - `init_type::Symbol`: Initialization type, can be `:zero`, `:random`, or `:custom`.
+    - `x0::RT`: Initial abundance value (used if `init_type` is `:custom`).
+    - `rng::AbstractRNG`: Random number generator.
 
     # Output
     - `MarginalFP_q0`: Marginal with the specified node index.
     """
-    function MarginalFP_q0(i::I, init_type::Symbol, x0::RT, chi0::RT, rng::AbstractRNG) where {I<:Integer, RT<:Real}
+    function MarginalFP_q0(i::I, init_type::Symbol, x0::RT, rng::AbstractRNG) where {I<:Integer, RT<:Real}
         if init_type == :zero
-            return new{Deterministic, I, RT}(i, zero(RT), zero(RT))
+            return new{Deterministic, I, RT}(i, zero(RT))
         elseif init_type == :random
-            return new{Deterministic, I, RT}(i, rand(rng), zero(RT))
+            return new{Deterministic, I, RT}(i, rand(rng))
         elseif init_type == :custom
-            return new{Deterministic, I, RT}(i, x0, chi0)
+            return new{Deterministic, I, RT}(i, x0)
         end
     end
 end
@@ -217,7 +219,7 @@ end
 """
     CavityFP_q0{Deterministic, I, RT}
 
-A type that represents a cavity in the fixed-point algorithm for deterministic dynamics, using the simplified version where q = 0.
+A type that represents a cavity in the fixed-point algorithm for deterministic dynamics, using the simplified version where q = χ = 0, i.e. a first order approximation of the cavity messages.
 
 # Fields
 $(TYPEDFIELDS)
@@ -234,21 +236,24 @@ struct NodeFP_q0{Deterministic, I<:Integer, RT<:Real}
     """ Marginal """
     marg::MarginalFP_q0{Deterministic, I, RT}
     """
-        NodeFP_q0{Deterministic, I, RT}(i::I, neighs::AbstractVector{I}) where {I<:Integer, RT<:Real}
+        NodeFP_q0{Deterministic, I, RT}(i::I, neighs::AbstractVector{I}, init_type::Symbol, x0::RT, rng::AbstractRNG) where {I<:Integer, RT<:Real}
 
     Create a new fixed-point node with the specified index and neighbors.
 
     # Arguments
     - `i::I`: Node index.
     - `neighs::Vector{I}`: Neighbors' indices.
+    - `init_type::Symbol`: Initialization type, can be `:zero`, `:random`, or `:custom`.
+    - `x0::RT`: Initial abundance value (used if `init_type` is `:custom`).
+    - `rng::AbstractRNG`: Random number generator.
 
     # Output
     - `NodeFP_q0`: Node with the specified index and neighbors.
     """
-    function NodeFP_q0(i::I, neighs::Vector{I}, init_type::Symbol, x0::RT, chi0::RT, rng::AbstractRNG) where {I<:Integer, RT<:Real}
+    function NodeFP_q0(i::I, neighs::Vector{I}, init_type::Symbol, x0::RT, rng::AbstractRNG) where {I<:Integer, RT<:Real}
         neighs_idx = Dict(neighs .=> eachindex(neighs))  # Map neighbor indices to their positions in the `neighs` vector
-        cavs = [CavityFP_q0(i, j, init_type, x0, chi0, rng) for j in neighs] # Initialize cavities
-        marg = MarginalFP_q0(i, init_type, x0, chi0, rng) # Initialize marginal
+        cavs = [CavityFP_q0(i, j, init_type, x0, rng) for j in neighs] # Initialize cavities
+        marg = MarginalFP_q0(i, init_type, x0, rng) # Initialize marginal
         new{Deterministic, I, RT}(i, neighs, neighs_idx, cavs, marg)
     end
 end
@@ -304,7 +309,7 @@ end
 """
     PopFP_q0{Deterministic, I, RT}
 
-A type that represents a population of messages for the fixed-point algorithm in deterministic dynamics. It uses the simplified version where q = 0.
+A type that represents a population of messages for the fixed-point algorithm in deterministic dynamics. It uses the simplified version where q = χ = 0, i.e. a first order approximation of the cavity messages.
 
 # Fields
 $(TYPEDFIELDS)
@@ -312,10 +317,8 @@ $(TYPEDFIELDS)
 struct PopFP_q0{Deterministic, I<:Integer, RT<:Real}
     """Population of abundances"""
     x_pop::Vector{RT}
-    """Population of susceptibilities"""
-    chi_pop::Vector{RT}
     """
-        PopFP_q0(P::I, init_type::Symbol, x0::RT, chi0::RT, rng::AbstractRNG) where {I<:Integer, RT<:Real}
+        PopFP_q0(P::I, init_type::Symbol, x0::RT, rng::AbstractRNG) where {I<:Integer, RT<:Real}
 
     Create a population of messages for the fixed-point algorithm in deterministic dynamics.
 
@@ -323,7 +326,6 @@ struct PopFP_q0{Deterministic, I<:Integer, RT<:Real}
     - `P::I`: Number of population elements.
     - `init_type::Symbol`: Initialization type, can be `:zero`, `:random`, or `:custom`.
     - `x0::RT`: Initial abundance value (used if `init_type` is `:custom`).
-    - `chi0::RT`: Initial susceptibility value (used if `init_type` is `:custom`).
 
     # Keyword Arguments
     - `rng::AbstractRNG`: Random number generator (default is `Xoshiro(1234)`). 
@@ -331,13 +333,13 @@ struct PopFP_q0{Deterministic, I<:Integer, RT<:Real}
     # Returns
     - `PopFP_q0{Deterministic, I, RT}`: Population of fixed-point cavity averages.
     """
-    function PopFP_q0(P::I, init_type::Symbol, x0::RT, chi0::RT, rng::AbstractRNG) where {I<:Integer, RT<:Real}
+    function PopFP_q0(P::I, init_type::Symbol, x0::RT, rng::AbstractRNG) where {I<:Integer, RT<:Real}
         if init_type == :zero
-            return new{Deterministic, I, RT}(zeros(RT, P), zeros(RT, P))
+            return new{Deterministic, I, RT}(zeros(RT, P))
         elseif init_type == :random
-            return new{Deterministic, I, RT}(rand(rng, RT, P), zeros(RT, P))
+            return new{Deterministic, I, RT}(rand(rng, RT, P))
         elseif init_type == :custom
-            return new{Deterministic, I, RT}(fill(x0, P), fill(chi0, P))
+            return new{Deterministic, I, RT}(fill(x0, P))
         end
     end
 end

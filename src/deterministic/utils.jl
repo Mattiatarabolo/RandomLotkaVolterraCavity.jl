@@ -2,42 +2,12 @@
 ########################################## Monte Carlo ###############################################
 ######################################################################################################
 
-function _sample!(x::Vector{RT}, h::Vector{RT}, model::Model{Deterministic, I, RT, MT, D}, dt::RT, divergence_threshold::RT, rng::AbstractRNG, p::Progress) where {I<:Integer, RT<:Real, MT<:AbstractMatrix{RT}, D<:Distribution}
-    # Get the model parameters
-    N, lam = model.N, model.lam # number of nodes in the graph and the coupling coefficient
-
-    # Compute the fields h
-    mul!(h, model.J, x)
-    next!(p; step = N^2)
-
-    # Initialize convergence flag
-    convergence = true
-
-    # Update the process path
-    @inbounds for i in 1:N
-        # Compute the term into square brackets
-        F = 1 - x[i] + h[i]
-        # Compute the new process path
-        x[i] *= exp(dt * F)
-        x[i] = lam + abs(x[i] - lam)   # reflective boundary condition at lam
-        # Check for divergence
-        if x[i] > divergence_threshold
-            @warn("Divergence detected in the trajectory.")
-            x[i] = divergence_threshold # Set to threshold to avoid divergence
-            convergence = false
-            break
-        end
-        next!(p)
-    end
-    return convergence
-end
-
-function _jac_ODE(Jac, u, p, t)
+function _jac!(Jac, u, p, t)
     Jmat, _ = p
     Jac .= Jmat .+ Diagonal(1 .- u)
 end
 
-function _sample_ODE!(du, u, p, t)
+function _sample!(du, u, p, t)
     Jmat, _ = p
     mul!(du, Jmat, u) # du = J * u
     du .= u .* (1 .- u .+ du) # Lotka-Volterra dynamics
@@ -63,11 +33,11 @@ function init_nodes(model::Model{Deterministic, I, RT, MT, D}, init_type::Symbol
     return nodes
 end
 
-function init_nodes_q0(model::Model{Deterministic, I, RT, MT, D}, init_type::Symbol, x0::RT, chi0::RT, rng::AbstractRNG) where {I<:Integer, RT<:Real, MT<:AbstractMatrix{RT}, D<:Distribution}
+function init_nodes_q0(model::Model{Deterministic, I, RT, MT, D}, init_type::Symbol, x0::RT, rng::AbstractRNG) where {I<:Integer, RT<:Real, MT<:AbstractMatrix{RT}, D<:Distribution}
     nodes = Vector{NodeFP_q0{Deterministic, I, RT}}(undef, model.N)
     for i in 1:model.N
         neighs = findall(model.J[i, :] .!= 0) # Find neighbors of node i
-        nodes[i] = NodeFP_q0(i, neighs, init_type, x0, chi0, rng) # Initialize the node with its neighbors
+        nodes[i] = NodeFP_q0(i, neighs, init_type, x0, rng) # Initialize the node with its neighbors
     end
     return nodes
 end
@@ -87,6 +57,7 @@ end
 w0_func(x::RT) where {RT<:Real} = mod_erf(x)
 w1_func(x::RT) where {RT<:Real} = x * mod_erf(x) + gauss(x)
 w2_func(x::RT) where {RT<:Real} = w0_func(x) + x * w1_func(x)
+
 
 #############################################################################################
 ########################################## FP DMFT ##########################################

@@ -3,8 +3,6 @@
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-
-
 # Placeholder update functions, where you can optimize the internal logic of f_mu, f_q, f_chi
 function f_mu(sum_mu::RT, Eps::RT, Delta::RT, Gamma::RT, regularization::RT) where {RT<:Real}
     if Gamma > zero(RT)
@@ -434,15 +432,39 @@ end
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 # Placeholder update functions, where you can optimize the internal logic of
-function f_x_q0(sum_x::RT, Gamma::RT, regularization::RT) where {RT<:Real}
-    return max(regularization, (1 + sum_x) / Gamma)
+function f_x_q0(sum_x::RT, regularization::RT) where {RT<:Real}
+    return max(regularization, 1 + sum_x)
 end
 
 ###########################################################################################################
 ############################## Single instance of disordered model ########################################
 ###########################################################################################################
+"""
+    run_GECaM_FP_q0(model::Model{Deterministic, I, RT, MT, D}, max_iter::I, conv_threshold::RT, damp::RT; init_type::Symbol=:random, x0::RT=0.0, rng::AbstractRNG=Xoshiro(1234), showprogress::Bool=false, verbose::Bool=false, divergence_threshold::RT=1e6, regularization::RT=-Inf) where {I<:Integer, RT<:Real, MT<:AbstractMatrix{RT}, D<:Distribution}
 
-function run_GECaM_FP_q0(model::Model{Deterministic, I, RT, MT, D}, max_iter::I, conv_threshold::RT, damp::RT; init_type::Symbol=:random, x0::RT=0.0, chi0::RT=0.0, rng::AbstractRNG=Xoshiro(1234), showprogress::Bool=false, verbose::Bool=false, divergence_threshold::RT=1e6, regularization::RT=-Inf) where {I<:Integer, RT<:Real, MT<:AbstractMatrix{RT}, D<:Distribution}
+Run the Gaussian Expansion Cavity Method (GECaM) fixed-point algorithm for deterministic dynamics with zero correlations (q = χ = 0, i.e. first order approximation of the cavity messages). It computes the fixed-point values of the mean abundances and susceptibilities for a given instance of the disordered model.
+
+# Arguments
+- `model::Model{Deterministic, I, RT, MT, D}`: The model to run the GECaM on.
+- `max_iter::I`: Maximum number of iterations to run.
+- `conv_threshold::RT`: Convergence threshold for the fixed-point iterations.
+- `damp::RT`: Damping factor for the updates.
+
+# Keyword Arguments
+- `init_type::Symbol`: Initialization type for the nodes. Supported types are `:zero`, `:random`, and `:custom` (default is `:random`).
+- `x0::RT`: Initial value for the mean (used if `init_type` is `:custom`, default is `0.0`).
+- `rng::AbstractRNG`: Random number generator for random initialization (default is `Xoshiro(1234)`).
+- `showprogress::Bool`: Whether to show progress during the iterations (default is `false`).
+- `verbose::Bool`: Whether to print detailed information during the iterations (default is `false`).
+- `divergence_threshold::RT`: Threshold for detecting divergence in the algorithm (default is `1e6`).
+- `regularization::RT`: Regularization parameter to avoid negative values (default is `-Inf`).
+
+# Output
+- `nodes::Vector{NodeFP{Deterministic, I, RT}}`: The nodes with their updated cavity and marginal values after running the GECaM fixed-point algorithm.
+- `converged::Bool`: Whether the algorithm converged within the specified number of iterations.
+- `diverged::Bool`: Whether the algorithm diverged during the iterations.
+"""
+function run_GECaM_FP_q0(model::Model{Deterministic, I, RT, MT, D}, max_iter::I, conv_threshold::RT, damp::RT; init_type::Symbol=:random, x0::RT=0.0, rng::AbstractRNG=Xoshiro(1234), showprogress::Bool=false, verbose::Bool=false, divergence_threshold::RT=1e6, regularization::RT=-Inf) where {I<:Integer, RT<:Real, MT<:AbstractMatrix{RT}, D<:Distribution}
     @assert max_iter > 0 "Maximum number of iterations must be greater than zero."
     @assert conv_threshold > 0 "Convergence threshold must be greater than zero."
     @assert damp >= 0 && damp <= 1 "Damping factor must be in the range [0, 1]."
@@ -455,7 +477,7 @@ function run_GECaM_FP_q0(model::Model{Deterministic, I, RT, MT, D}, max_iter::I,
     end
 
     # Initialize the nodes
-    nodes = init_nodes_q0(model, init_type, x0, chi0, rng)
+    nodes = init_nodes_q0(model, init_type, x0, rng)
     N = length(nodes) # Number of nodes in the model
 
     # Initialize convergence check
@@ -476,11 +498,9 @@ function run_GECaM_FP_q0(model::Model{Deterministic, I, RT, MT, D}, max_iter::I,
             i = inode.i # Node index
             # Sum over neighbors' contributions
             sum_x = zero(RT)
-            sum_chi = zero(RT)
             for (jidx, jicav) in enumerate(inode.cavs)
                 j = inode.neighs[jidx]
                 sum_x += model.J[i, j] * jicav.x # Sum of cavity means
-                sum_chi += model.J[i, j] * model.J[j, i] * jicav.chi # Sum of cavity susceptibilities
             end
             # Iterate over the cavities
             for (jidx, jicav) in enumerate(inode.cavs)
@@ -488,27 +508,23 @@ function run_GECaM_FP_q0(model::Model{Deterministic, I, RT, MT, D}, max_iter::I,
                 iidx = nodes[j].neighs_idx[i] # Get the index of node i in the neighbors of node j
                 # Compute sum_x, Gamma
                 sum_x_cav = sum_x - model.J[i, j] * jicav.x
-                sum_chi_cav = sum_chi - model.J[i, j] * model.J[j, i] * jicav.chi
-                Gamma_cav = 1 - sum_chi_cav
                 # Compute the new cavity values
-                new_x_cav = f_x_q0(sum_x_cav, Gamma_cav, regularization)
-                new_chi_cav = 1 / Gamma_cav
+                new_x_cav = f_x_q0(sum_x_cav, regularization)
                 # Check for divergence
-                if !isfinite(new_x_cav) || !isfinite(new_chi_cav) || new_x_cav > divergence_threshold || new_chi_cav > divergence_threshold
+                if !isfinite(new_x_cav) || new_x_cav > divergence_threshold
                     if showprogress || verbose
-                        println("Divergence (or negative values) detected in cavity ($i, $j): x=$(new_x_cav), chi=$(new_chi_cav).")
+                        println("Divergence (or negative values) detected in cavity ($i, $j): x=$(new_x_cav).")
                     end
                     diverged = true
                     converged = false
                     break
                 end
                 # Compute the norm for convergence check
-                old_x_cav, old_chi_cav = nodes[j].cavs[iidx].x, nodes[j].cavs[iidx].chi
-                new_norm = damp * max(abs(new_x_cav - old_x_cav), abs(new_chi_cav - old_chi_cav))
+                old_x_cav = nodes[j].cavs[iidx].x
+                new_norm = damp * abs(new_x_cav - old_x_cav)
                 norm = max(norm, new_norm) # Update the norm
                 # Update the cavity values with damping
                 nodes[j].cavs[iidx].x = damp * new_x_cav + (1 - damp) * old_x_cav
-                nodes[j].cavs[iidx].chi = damp * new_chi_cav + (1 - damp) * old_chi_cav
             end
             # Check for divergence 
             if diverged
@@ -542,19 +558,14 @@ function run_GECaM_FP_q0(model::Model{Deterministic, I, RT, MT, D}, max_iter::I,
         i = inode.i # Node index
         # Sum over neighbors' contributions
         sum_x = zero(RT)
-        sum_chi = zero(RT)
         for (jidx, jicav) in enumerate(inode.cavs)
             j = inode.neighs[jidx]
             sum_x += model.J[i, j] * jicav.x # Sum of cavity means
-            sum_chi += model.J[i, j] * model.J[j, i] * jicav.chi # Sum of cavity susceptibilities
         end
-        # Compute sum_x, Gamma
-        Gamma = 1 - sum_chi
         # Compute the new marginal values
-        inode.marg.x = f_x_q0(sum_x, Gamma, regularization)
-        inode.marg.chi = 1 / Gamma
+        inode.marg.x = f_x_q0(sum_x, regularization)
         # Check for divergence
-        if !isfinite(inode.marg.x) || !isfinite(inode.marg.chi) || inode.marg.x > divergence_threshold || inode.marg.chi > divergence_threshold
+        if !isfinite(inode.marg.x) || inode.marg.x > divergence_threshold
             if showprogress || verbose
                 println("Divergence (or negative values) detected in marginal node $(inode.i): x=$(inode.marg.x), chi=$(inode.marg.chi).")
             end
@@ -574,25 +585,20 @@ end
 function sumpop_q0(pop::PopFP_q0{Deterministic, I, RT}, couplings_pop::PopJ{Deterministic, I, RT}, neigh_idxs::Vector{I}, k_cav::I) where {I<:Integer, RT<:Real}
     # Initialize sums
     sum_x = zero(RT)
-    sum_chi = zero(RT)
     # Iterate over the neighbors' indices
     for j in neigh_idxs[1:k_cav]
         J = couplings_pop.J_pop[j]
-        Jp = couplings_pop.Jp_pop[j]
         x_j = pop.x_pop[j]
-        chi_j = pop.chi_pop[j]
         # Update sums
         sum_x += J * x_j
-        sum_chi += J * Jp * chi_j
     end
-    Gamma = 1 - sum_chi
-    return sum_x, Gamma
+    return sum_x
 end
 
 """
-    run_GECaM_FP_q0(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, FT}, P::I, max_iter::I, conv_threshold::RT, damp::RT; init_type::Symbol=:random, x0::RT=0.0, chi0::RT=0.0, rng::AbstractRNG=Xoshiro(1234), showprogress::Bool=false, verbose::Bool=false, divergence_threshold::RT=1e6, regularization::RT=-Inf) where {I<:Integer, RT<:Real, D1<:Distribution, D2<:Distribution, D3<:Distribution, FT<:Function}
+    run_GECaM_FP_q0(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, FT}, P::I, max_iter::I, conv_threshold::RT, damp::RT; init_type::Symbol=:random, x0::RT=0.0, rng::AbstractRNG=Xoshiro(1234), showprogress::Bool=false, verbose::Bool=false, divergence_threshold::RT=1e6, regularization::RT=-Inf) where {I<:Integer, RT<:Real, D1<:Distribution, D2<:Distribution, D3<:Distribution, FT<:Function}
 
-Run the Gaussian Expansion Cavity Method (GECaM) fixed-point algorithm for a disordered model with deterministic dynamics and simplified case where correlations are set to zero (q = 0). It computes through a population dynamics algorithm the fixed-point values of the mean abundances and susceptibilities averaged over the disordered model.
+Run the Gaussian Expansion Cavity Method (GECaM) fixed-point algorithm for a disordered model with deterministic dynamics and simplified case where correlations are set to zero (q = χ = 0, i.e. first order approximation of the cavity messages). It computes through a population dynamics algorithm the fixed-point values of the mean abundances and susceptibilities averaged over the disordered model.
 
 # Arguments
 - `model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, FT}`: The disordered model to run the GECaM on.
@@ -604,7 +610,6 @@ Run the Gaussian Expansion Cavity Method (GECaM) fixed-point algorithm for a dis
 # Keyword Arguments
 - `init_type::Symbol`: Initialization type for the nodes. Supported types are `:zero`, `:random`, and `:custom` (default is `:random`).
 - `x0::RT`: Initial value for the mean (used if `init_type` is `:custom`, default is `0.0`).
-- `chi0::RT`: Initial value for the susceptibility (used if `init_type` is `:custom`, default is `0.0`).
 - `rng::AbstractRNG`: Random number generator for random initialization (default is `Xoshiro(1234)`).
 - `showprogress::Bool`: Whether to show progress during the iterations (default is `false`).
 - `verbose::Bool`: Whether to print detailed information during the iterations (default is `false`).
@@ -617,7 +622,7 @@ Run the Gaussian Expansion Cavity Method (GECaM) fixed-point algorithm for a dis
 - `converged::Bool`: Whether the algorithm converged within the specified number of iterations.
 - `diverged::Bool`: Whether the algorithm diverged during the iterations.
 """
-function run_GECaM_FP_q0(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, FT}, P::I, max_iter::I, conv_threshold::RT, damp::RT; init_type::Symbol=:random, x0::RT=0.0, chi0::RT=0.0, rng::AbstractRNG=Xoshiro(1234), showprogress::Bool=false, verbose::Bool=false, divergence_threshold::RT=1e6, regularization::RT=-Inf) where {I<:Integer, RT<:Real, D1<:Distribution, D2<:Distribution, D3<:Distribution, FT<:Function}
+function run_GECaM_FP_q0(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3, FT}, P::I, max_iter::I, conv_threshold::RT, damp::RT; init_type::Symbol=:random, x0::RT=0.0, rng::AbstractRNG=Xoshiro(1234), showprogress::Bool=false, verbose::Bool=false, divergence_threshold::RT=1e6, regularization::RT=-Inf) where {I<:Integer, RT<:Real, D1<:Distribution, D2<:Distribution, D3<:Distribution, FT<:Function}
     @assert max_iter > 0 "Maximum number of iterations must be greater than zero."
     @assert conv_threshold > 0 "Convergence threshold must be greater than zero."
     @assert damp >= 0 && damp <= 1 "Damping factor must be in the range [0, 1]."
@@ -632,7 +637,7 @@ function run_GECaM_FP_q0(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3
     m, sigma2, corr, K = model.m, model.sigma2, model.corr, model.K # Default values from the model
 
     # Initialize the cavity populations
-    cav_pop = PopFP_q0(P, init_type, x0, chi0, rng)
+    cav_pop = PopFP_q0(P, init_type, x0, rng)
     couplings_pop = PopJ(P, m, sigma2, corr, K, rng)
 
     # Initialize cavity neighbors indices
@@ -641,7 +646,6 @@ function run_GECaM_FP_q0(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3
 
     # Initialize means of the populations for convergence check
     old_avg_x = mean(cav_pop.x_pop)
-    old_avg_chi = mean(cav_pop.chi_pop)
 
     # Initialize convergence check
     converged = false
@@ -665,7 +669,6 @@ function run_GECaM_FP_q0(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3
             # Check if degree is zero
             if k_cav == 0
                 new_x = one(RT)
-                new_chi = one(RT)
             else
                 # Sample k_cav neighbors indices
                 neigh_idxs[1:k_cav] .= sample(rng, 1:P, k_cav, replace=false)
@@ -674,13 +677,12 @@ function run_GECaM_FP_q0(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3
                     couplings_pop.J_pop[j], couplings_pop.Jp_pop[j] = sample_couplings(m, sigma2, corr, K; rng=rng)
                 end
                 # Compute the sums over neighbors' contributions
-                sum_x_cav, Gamma_cav = sumpop_q0(cav_pop, couplings_pop, neigh_idxs, k_cav)
+                sum_x_cav = sumpop_q0(cav_pop, couplings_pop, neigh_idxs, k_cav)
                 # Compute the new cavity values
-                new_x = f_x_q0(sum_x_cav, Gamma_cav, regularization)
-                new_chi = 1 / Gamma_cav
+                new_x = f_x_q0(sum_x_cav, regularization)
             end
             # Check for divergence
-            if !isfinite(new_x) || !isfinite(new_chi) || new_x > divergence_threshold || new_chi > divergence_threshold
+            if !isfinite(new_x) || new_x > divergence_threshold
                 if showprogress || verbose
                     println("Divergence (or negative values) detected in cavity $ipop: x=$(new_x), chi=$(new_chi).")
                 end
@@ -689,9 +691,8 @@ function run_GECaM_FP_q0(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3
                 break
             end
             # Update the cavity values with damping
-            old_x, old_chi = cav_pop.x_pop[ipop], cav_pop.chi_pop[ipop]
+            old_x = cav_pop.x_pop[ipop]
             cav_pop.x_pop[ipop] = damp * new_x + (1 - damp) * old_x
-            cav_pop.chi_pop[ipop] = damp * new_chi + (1 - damp) * old_chi
         end
         # Check for divergence
         if diverged
@@ -702,12 +703,11 @@ function run_GECaM_FP_q0(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3
         end
         # Compute the averages for convergence check
         new_avg_x = mean(cav_pop.x_pop)
-        new_avg_chi = mean(cav_pop.chi_pop)
         # Compute the norm for convergence check
-        new_norm = max(abs(new_avg_x - old_avg_x), abs(new_avg_chi - old_avg_chi))
+        new_norm = abs(new_avg_x - old_avg_x)
         norm = max(norm, new_norm) # Update the norm
         # Update the averages for the next iteration
-        old_avg_x, old_avg_chi = new_avg_x, new_avg_chi
+        old_avg_x = new_avg_x
         # Print progress status
         if showprogress
             println("Iteration $iter: $norm (convergence threshold $conv_threshold)")
@@ -726,7 +726,7 @@ function run_GECaM_FP_q0(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3
         println("Maximum iterations reached without convergence. Final norm: $norm (convergence threshold $conv_threshold). Total time taken: $(canonicalize(Dates.CompoundPeriod(now() - start))).")
     end
     # Initialize the marginal population
-    marg_pop = PopFP_q0(P, init_type, x0, chi0, rng)
+    marg_pop = PopFP_q0(P, init_type, x0, rng)
     # Initialize marginal neighbors indices
     k_marg_max = maximum(model.deg_pdf) # Maximum number of neighbors in the cavity
     neigh_idxs = zeros(I, k_marg_max) # Neighbors indices
@@ -737,7 +737,6 @@ function run_GECaM_FP_q0(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3
         # Check if degree is zero
         if k_marg == 0
             marg_pop.x_pop[ipop] = one(RT)
-            marg_pop.chi_pop[ipop] = one(RT)
         else
             # Sample k_marg neighbors indices
             neigh_idxs[1:k_marg] .= sample(rng, 1:P, k_marg, replace=false)
@@ -746,15 +745,14 @@ function run_GECaM_FP_q0(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3
                 couplings_pop.J_pop[j], couplings_pop.Jp_pop[j] = sample_couplings(m, sigma2, corr, K; rng=rng)
             end
             # Compute the sums over neighbors' contributions
-            sum_x_marg, Gamma_marg = sumpop_q0(cav_pop, couplings_pop, neigh_idxs, k_marg)
+            sum_x_marg = sumpop_q0(cav_pop, couplings_pop, neigh_idxs, k_marg)
             # Compute the new cavity values
-            marg_pop.x_pop[ipop] = f_x_q0(sum_x_marg, Gamma_marg, regularization)
-            marg_pop.chi_pop[ipop] =  1 / Gamma_marg
+            marg_pop.x_pop[ipop] = f_x_q0(sum_x_marg, regularization)
         end
         # Check for divergence
-        if !isfinite(marg_pop.x_pop[ipop]) || !isfinite(marg_pop.chi_pop[ipop]) || marg_pop.x_pop[ipop] > divergence_threshold || marg_pop.chi_pop[ipop] > divergence_threshold
+        if !isfinite(marg_pop.x_pop[ipop]) || marg_pop.x_pop[ipop] > divergence_threshold
             if showprogress || verbose
-                println("Divergence (or negative values) detected in marginal node $ipop: x=$(marg_pop.x_pop[ipop]), chi=$(marg_pop.chi_pop[ipop]).")
+                println("Divergence (or negative values) detected in marginal node $ipop: x=$(marg_pop.x_pop[ipop]).")
             end
             diverged = true
             converged = false
