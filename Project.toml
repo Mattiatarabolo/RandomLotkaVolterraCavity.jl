@@ -1,6 +1,6 @@
 name = "RandomLotkaVolterraCavity"
 uuid = "e0cb5db2-507d-4330-81aa-f62556075e35"
-version = "1.1.0"
+version = "1.1.1"
 authors = ["Mattia Tarabolo <mattia.tarabolo@gmail.com> and contributors"]
 
 [deps]

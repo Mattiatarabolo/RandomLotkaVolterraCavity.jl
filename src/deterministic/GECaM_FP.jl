@@ -684,7 +684,7 @@ function run_GECaM_FP_q0(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3
             # Check for divergence
             if !isfinite(new_x) || new_x > divergence_threshold
                 if showprogress || verbose
-                    println("Divergence (or negative values) detected in cavity $ipop: x=$(new_x), chi=$(new_chi).")
+                    println("Divergence (or negative values) detected in cavity $ipop: x=$(new_x).")
                 end
                 diverged = true
                 converged = false
