@@ -582,13 +582,13 @@ end
 ################################# Average over disordered model ###########################################
 ###########################################################################################################
 
-function sumpop_q0(pop::PopFP_q0{Deterministic, I, RT}, couplings_pop::PopJ{Deterministic, I, RT}, neigh_idxs::Vector{I}, k_cav::I) where {I<:Integer, RT<:Real}
+function sumpop_q0(pop::Vector{RT}, couplings_pop::Vector{RT}, neigh_idxs::Vector{I}, k_cav::I) where {I<:Integer, RT<:Real}
     # Initialize sums
     sum_x = zero(RT)
     # Iterate over the neighbors' indices
     for j in neigh_idxs[1:k_cav]
-        J = couplings_pop.J_pop[j]
-        x_j = pop.x_pop[j]
+        J = couplings_pop[j]
+        x_j = pop[j]
         # Update sums
         sum_x += J * x_j
     end
@@ -617,8 +617,8 @@ Run the Gaussian Expansion Cavity Method (GECaM) fixed-point algorithm for a dis
 - `regularization::RT`: Regularization parameter to avoid negative values (default is `-Inf`).
 
 # Output
-- `cav_pop::PopFP_q0{I, RT}`: The cavity population with updated values after running the GECaM fixed-point algorithm.
-- `marg_pop::PopFP_q0{I, RT}`: The marginal population with updated values after running the GECaM fixed-point algorithm.
+- `cav_pop::Vector{RT}`: The cavity population with updated values after running the GECaM fixed-point algorithm.
+- `marg_pop::Vector{RT}`: The marginal population with updated values after running the GECaM fixed-point algorithm.
 - `converged::Bool`: Whether the algorithm converged within the specified number of iterations.
 - `diverged::Bool`: Whether the algorithm diverged during the iterations.
 """
@@ -634,18 +634,18 @@ function run_GECaM_FP_q0(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3
         verbose = true
     end
 
-    m, sigma2, corr, K = model.m, model.sigma2, model.corr, model.K # Default values from the model
+    m, sigma2, K, p0 = model.m, model.sigma2, model.K, model.p0 # Default values from the model
 
     # Initialize the cavity populations
-    cav_pop = PopFP_q0(P, init_type, x0, rng)
-    couplings_pop = PopJ(P, m, sigma2, corr, K, rng)
+    cav_pop = init_pop_q0(P, init_type, p0, x0, rng)
+    couplings_pop = (m / K) .+ sqrt(sigma2 / K) .* randn(rng, RT, P) # Couplings population
 
     # Initialize cavity neighbors indices
     k_cav_max = maximum(model.deg_cav_pdf) # Maximum number of neighbors in the cavity
     neigh_idxs = zeros(I, k_cav_max) # Neighbors indices
 
     # Initialize means of the populations for convergence check
-    old_avg_x = mean(cav_pop.x_pop)
+    old_avg_x = mean(cav_pop)
 
     # Initialize convergence check
     converged = false
@@ -674,7 +674,7 @@ function run_GECaM_FP_q0(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3
                 neigh_idxs[1:k_cav] .= sample(rng, 1:P, k_cav, replace=false)
                 # Sample k_cav pairs of correlated couplings
                 for j in neigh_idxs[1:k_cav]
-                    couplings_pop.J_pop[j], couplings_pop.Jp_pop[j] = sample_couplings(m, sigma2, corr, K; rng=rng)
+                    couplings_pop[j] = m / K + sqrt(sigma2 / K) * randn(rng)
                 end
                 # Compute the sums over neighbors' contributions
                 sum_x_cav = sumpop_q0(cav_pop, couplings_pop, neigh_idxs, k_cav)
@@ -691,8 +691,8 @@ function run_GECaM_FP_q0(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3
                 break
             end
             # Update the cavity values with damping
-            old_x = cav_pop.x_pop[ipop]
-            cav_pop.x_pop[ipop] = damp * new_x + (1 - damp) * old_x
+            old_x = cav_pop[ipop]
+            cav_pop[ipop] = damp * new_x + (1 - damp) * old_x
         end
         # Check for divergence
         if diverged
@@ -702,7 +702,7 @@ function run_GECaM_FP_q0(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3
             break
         end
         # Compute the averages for convergence check
-        new_avg_x = mean(cav_pop.x_pop)
+        new_avg_x = mean(cav_pop)
         # Compute the norm for convergence check
         new_norm = abs(new_avg_x - old_avg_x)
         norm = max(norm, new_norm) # Update the norm
@@ -726,7 +726,7 @@ function run_GECaM_FP_q0(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3
         println("Maximum iterations reached without convergence. Final norm: $norm (convergence threshold $conv_threshold). Total time taken: $(canonicalize(Dates.CompoundPeriod(now() - start))).")
     end
     # Initialize the marginal population
-    marg_pop = PopFP_q0(P, init_type, x0, rng)
+    marg_pop = Vector{RT}(undef, P)
     # Initialize marginal neighbors indices
     k_marg_max = maximum(model.deg_pdf) # Maximum number of neighbors in the cavity
     neigh_idxs = zeros(I, k_marg_max) # Neighbors indices
@@ -736,23 +736,23 @@ function run_GECaM_FP_q0(model::ModelDisordered{Deterministic, I, RT, D1, D2, D3
         k_marg = rand(rng, model.deg_pdf)
         # Check if degree is zero
         if k_marg == 0
-            marg_pop.x_pop[ipop] = one(RT)
+            marg_pop[ipop] = one(RT)
         else
             # Sample k_marg neighbors indices
             neigh_idxs[1:k_marg] .= sample(rng, 1:P, k_marg, replace=false)
             # Sample k_marg pairs of correlated couplings
             for j in neigh_idxs[1:k_marg]
-                couplings_pop.J_pop[j], couplings_pop.Jp_pop[j] = sample_couplings(m, sigma2, corr, K; rng=rng)
+                couplings_pop[j] = m / K + sqrt(sigma2 / K) * randn(rng)
             end
             # Compute the sums over neighbors' contributions
             sum_x_marg = sumpop_q0(cav_pop, couplings_pop, neigh_idxs, k_marg)
             # Compute the new cavity values
-            marg_pop.x_pop[ipop] = f_x_q0(sum_x_marg, regularization)
+            marg_pop[ipop] = f_x_q0(sum_x_marg, regularization)
         end
         # Check for divergence
-        if !isfinite(marg_pop.x_pop[ipop]) || marg_pop.x_pop[ipop] > divergence_threshold
+        if !isfinite(marg_pop[ipop]) || marg_pop[ipop] > divergence_threshold
             if showprogress || verbose
-                println("Divergence (or negative values) detected in marginal node $ipop: x=$(marg_pop.x_pop[ipop]).")
+                println("Divergence (or negative values) detected in marginal node $ipop: x=$(marg_pop[ipop]).")
             end
             diverged = true
             converged = false

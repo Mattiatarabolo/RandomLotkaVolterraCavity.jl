@@ -42,6 +42,17 @@ function init_nodes_q0(model::Model{Deterministic, I, RT, MT, D}, init_type::Sym
     return nodes
 end
 
+function init_pop_q0(P::I, init_type::Symbol, p0::D, x0::RT, rng::AbstractRNG) where {I<:Integer, D<:Distribution, RT<:Real}
+    if init_type == :zero
+        return zeros(RT, P)
+    elseif init_type == :random
+        return rand(rng, p0, P)
+    elseif init_type == :custom
+        return fill(x0, P)
+    else
+        error("Unknown initialization type: $init_type")
+    end
+end
 
 # Shortname for functions used in cavity update
 function gauss(x::RT) where {RT<:Real}

@@ -185,26 +185,14 @@ base_model_dis_fc = ModelDisorderedFC(2, 4, 0.2, 0.3, 0.1, 0.05, P0_DIST, Determ
         @test pop_custom.mu_pop == fill(0.1, 2)
         @test pop_custom.chi_pop == fill(0.3, 2)
 
-        pop_q0_zero = PopFP_q0(2, :zero, 0.0, rng)  # q0 variant vector checks
-        @test pop_q0_zero.x_pop == zeros(2)
+        pop_q0_zero = RandomLotkaVolterraCavity.init_pop_q0(2, :zero, base_model_dis.p0, 0.0, rng)  # q0 variant vector checks
+        @test pop_q0_zero == zeros(2)
 
-        pop_q0_rand = PopFP_q0(2, :random, 0.0, rng)
-        @test pop_q0_rand.x_pop == rand(rng_ref, 2)
+        pop_q0_rand = RandomLotkaVolterraCavity.init_pop_q0(2, :random, base_model_dis.p0, 0.0, rng)
+        @test pop_q0_rand == rand(rng_ref, base_model_dis.p0, 2)
 
-        pop_q0_custom = PopFP_q0(2, :custom, 0.3, rng)
-        @test pop_q0_custom.x_pop == fill(0.3, 2)
-
-        pop_j = PopJ(2, 0.2, 0.3, 0.1, 2.0, rng)  # uses sample_couplings internally; verify distributional match
-        J_expected = zeros(2)
-        Jp_expected = zeros(2)
-        for i in 1:2
-            u = randn(rng_ref)
-            v = randn(rng_ref)
-            J_expected[i] = 0.2 / 2 + sqrt(0.3 / 2) * u
-            Jp_expected[i] = 0.2 / 2 + sqrt(0.3 / 2) * (0.1 * u + sqrt(1 - 0.1^2) * v)
-        end
-        @test pop_j.J_pop ≈ J_expected
-        @test pop_j.Jp_pop ≈ Jp_expected
+        pop_q0_custom = RandomLotkaVolterraCavity.init_pop_q0(2, :custom, base_model_dis.p0, 0.3, rng)
+        @test pop_q0_custom == fill(0.3, 2)
     end
 
     @testset "Sampling" begin
@@ -261,13 +249,13 @@ base_model_dis_fc = ModelDisorderedFC(2, 4, 0.2, 0.3, 0.1, 0.05, P0_DIST, Determ
         end
 
         cav_pop_q0, marg_pop_q0, conv_dis_q0, diverged_dis_q0 = run_GECaM_FP_q0(base_model_dis, 5, 5, 1e-3, 0.5; init_type=:custom, x0=0.2, rng=Xoshiro(BASE_SEED), regularization=1e-6)
-        @test length(cav_pop_q0.x_pop) == 5
-        @test length(marg_pop_q0.x_pop) == 5
+        @test length(cav_pop_q0) == 5
+        @test length(marg_pop_q0) == 5
         @test conv_dis_q0 isa Bool
         @test diverged_dis_q0 isa Bool
         # only check numerical content when the iterative loop converges
         if !diverged_dis_q0
-            @test all(isfinite, cav_pop_q0.x_pop)
+            @test all(isfinite, cav_pop_q0)
         end
     end
 

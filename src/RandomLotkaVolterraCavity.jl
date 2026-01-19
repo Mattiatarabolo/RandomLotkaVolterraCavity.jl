@@ -12,7 +12,7 @@ module RandomLotkaVolterraCavity
     using OrdinaryDiffEq, DiffEqCallbacks
 
     export AbstractNoiseKind, ModelDisordered, ModelDisorderedFC, Model, sample_couplings, run_MC
-    export Deterministic, CavityFP, MarginalFP, NodeFP, PopFP, PopJ, run_GECaM_FP, analytic_FC, CavityFP_q0, MarginalFP_q0, NodeFP_q0, PopFP_q0, run_GECaM_FP_q0
+    export Deterministic, CavityFP, MarginalFP, NodeFP, PopFP, PopJ, run_GECaM_FP, analytic_FC, CavityFP_q0, MarginalFP_q0, NodeFP_q0, run_GECaM_FP_q0
     
     include("types.jl")
     include("sample.jl")

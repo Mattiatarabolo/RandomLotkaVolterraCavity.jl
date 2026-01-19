@@ -307,44 +307,6 @@ struct PopFP{Deterministic, I<:Integer, RT<:Real}
 end
 
 """
-    PopFP_q0{Deterministic, I, RT}
-
-A type that represents a population of messages for the fixed-point algorithm in deterministic dynamics. It uses the simplified version where q = χ = 0, i.e. a first order approximation of the cavity messages.
-
-# Fields
-$(TYPEDFIELDS)
-"""
-struct PopFP_q0{Deterministic, I<:Integer, RT<:Real}
-    """Population of abundances"""
-    x_pop::Vector{RT}
-    """
-        PopFP_q0(P::I, init_type::Symbol, x0::RT, rng::AbstractRNG) where {I<:Integer, RT<:Real}
-
-    Create a population of messages for the fixed-point algorithm in deterministic dynamics.
-
-    # Arguments
-    - `P::I`: Number of population elements.
-    - `init_type::Symbol`: Initialization type, can be `:zero`, `:random`, or `:custom`.
-    - `x0::RT`: Initial abundance value (used if `init_type` is `:custom`).
-
-    # Keyword Arguments
-    - `rng::AbstractRNG`: Random number generator (default is `Xoshiro(1234)`). 
-
-    # Returns
-    - `PopFP_q0{Deterministic, I, RT}`: Population of fixed-point cavity averages.
-    """
-    function PopFP_q0(P::I, init_type::Symbol, x0::RT, rng::AbstractRNG) where {I<:Integer, RT<:Real}
-        if init_type == :zero
-            return new{Deterministic, I, RT}(zeros(RT, P))
-        elseif init_type == :random
-            return new{Deterministic, I, RT}(rand(rng, RT, P))
-        elseif init_type == :custom
-            return new{Deterministic, I, RT}(fill(x0, P))
-        end
-    end
-end
-
-"""
     PopJ{Deterministic, I, RT}
 
 A type that represents a population of interaction strengths J and J' for a given number of nodes.
