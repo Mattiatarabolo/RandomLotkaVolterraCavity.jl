@@ -248,14 +248,13 @@ base_model_dis_fc = ModelDisorderedFC(2, 4, 0.2, 0.3, 0.1, 0.05, P0_DIST, Determ
             @test all(n -> n.marg.x >= 0 && isfinite(n.marg.x), nodes_q0)
         end
 
-        cav_pop_q0, marg_pop_q0, conv_dis_q0, diverged_dis_q0 = run_GECaM_FP_q0(base_model_dis, 5, 5, 1e-3, 0.5; init_type=:custom, x0=0.2, rng=Xoshiro(BASE_SEED), regularization=1e-6)
-        @test length(cav_pop_q0) == 5
-        @test length(marg_pop_q0) == 5
+        pop_q0, conv_dis_q0, diverged_dis_q0 = run_GECaM_FP_q0(base_model_dis, 5, 5, 1e-3, 0.5; init_type=:custom, x0=0.2, rng=Xoshiro(BASE_SEED), regularization=1e-6)
+        @test length(pop_q0) == 5
         @test conv_dis_q0 isa Bool
         @test diverged_dis_q0 isa Bool
         # only check numerical content when the iterative loop converges
         if !diverged_dis_q0
-            @test all(isfinite, cav_pop_q0)
+            @test all(isfinite, pop_q0)
         end
     end
 
