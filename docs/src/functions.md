@@ -17,5 +17,5 @@ Modules = [RandomLotkaVolterraCavity]
 
 ```@autodocs
 Modules = [RandomLotkaVolterraCavity]
-Pages   = ["types.jl", "sample.jl", "sample_ODE.jl", "deterministic/types.jl", "deterministic/utils.jl", "deterministic/GECaM_FP.jl"]
+Pages   = ["types.jl", "sample.jl", "sample_ODE.jl", "deterministic/types.jl", "deterministic/utils.jl", "deterministic/GECaM_FP.jl", "deterministic/FokkerPlanck.jl"]
 ```
