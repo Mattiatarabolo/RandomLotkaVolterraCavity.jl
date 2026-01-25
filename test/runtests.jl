@@ -57,7 +57,7 @@ base_model_dis_fc = ModelDisorderedFC(2, 4, 0.2, 0.3, 0.1, 0.05, P0_DIST, Determ
         rng = Xoshiro(BASE_SEED)  # consistent RNG per sub-test
         rng_ref = copy(rng)  # reference generator to reproduce random draws
 
-        cav_zero = CavityFP(1, 2, :zero, 0.0, 0.0, 0.0, rng)  # zero initialisation
+        cav_zero = CavityFP(1, 2, :zero, 0.0, 0.0, 0.0, Xoshiro(BASE_SEED))  # zero initialisation
         @test cav_zero.i == 1
         @test cav_zero.j == 2
         @test cav_zero.mu == 0.0
@@ -78,7 +78,7 @@ base_model_dis_fc = ModelDisorderedFC(2, 4, 0.2, 0.3, 0.1, 0.05, P0_DIST, Determ
         @test cav_custom.q == 0.2
         @test cav_custom.chi == 0.1
 
-        marg_zero = MarginalFP(1, :zero, 0.0, 0.0, 0.0, rng)
+        marg_zero = MarginalFP(1, :zero, 0.0, 0.0, 0.0, Xoshiro(BASE_SEED))
         @test marg_zero.i == 1
         @test marg_zero.mu == 0.0
         @test marg_zero.q == 0.0
@@ -96,34 +96,40 @@ base_model_dis_fc = ModelDisorderedFC(2, 4, 0.2, 0.3, 0.1, 0.05, P0_DIST, Determ
         @test marg_custom.q == 0.2
         @test marg_custom.chi == 0.1
 
-        cav_q0 = CavityFP_q0(1, 2, :zero, 0.0, rng)
-        @test cav_q0.i == 1
-        @test cav_q0.j == 2
-        @test cav_q0.x == 0.0
+        cav_BP = CavityFP_BP(1, 2, :zero, 0.0, 0.0, Xoshiro(BASE_SEED))
+        @test cav_BP.i == 1
+        @test cav_BP.j == 2
+        @test cav_BP.mu == 0.0
+        @test cav_BP.q == 0.0
 
-        cav_q0_rand = CavityFP_q0(1, 2, :random, 0.0, rng)
-        @test cav_q0_rand.i == 1
-        @test cav_q0_rand.j == 2
-        @test cav_q0_rand.x == rand(rng_ref)
+        cav_BP_rand = CavityFP_BP(1, 2, :random, 0.0, 0.0, rng)
+        @test cav_BP_rand.i == 1
+        @test cav_BP_rand.j == 2
+        @test cav_BP_rand.mu == rand(rng_ref)
+        @test cav_BP_rand.q == rand(rng_ref)
 
-        cav_q0_custom = CavityFP_q0(1, 2, :custom, 0.8, Xoshiro(BASE_SEED))
-        @test cav_q0_custom.i == 1
-        @test cav_q0_custom.j == 2
-        @test cav_q0_custom.x == 0.8
+        cav_BP_custom = CavityFP_BP(1, 2, :custom, 0.8, 0.2, Xoshiro(BASE_SEED))
+        @test cav_BP_custom.i == 1
+        @test cav_BP_custom.j == 2
+        @test cav_BP_custom.mu == 0.8
+        @test cav_BP_custom.q == 0.2
 
-        marg_q0 = MarginalFP_q0(1, :zero, 0.0, rng)
-        @test marg_q0.i == 1
-        @test marg_q0.x == 0.0
+        marg_BP = MarginalFP_BP(1, :zero, 0.0, 0.0, Xoshiro(BASE_SEED))
+        @test marg_BP.i == 1
+        @test marg_BP.mu == 0.0
+        @test marg_BP.q == 0.0
         
-        marg_q0_rand = MarginalFP_q0(1, :random, 0.0, rng)
-        @test marg_q0_rand.i == 1
-        @test marg_q0_rand.x == rand(rng_ref)
+        marg_BP_rand = MarginalFP_BP(1, :random, 0.0, 0.0, rng)
+        @test marg_BP_rand.i == 1
+        @test marg_BP_rand.mu == rand(rng_ref)
+        @test marg_BP_rand.q == rand(rng_ref)
 
-        marg_q0_custom = MarginalFP_q0(1, :custom, 0.8, rng)
-        @test marg_q0_custom.i == 1
-        @test marg_q0_custom.x == 0.8
+        marg_BP_custom = MarginalFP_BP(1, :custom, 0.8, 0.2, Xoshiro(BASE_SEED))
+        @test marg_BP_custom.i == 1
+        @test marg_BP_custom.mu == 0.8
+        @test marg_BP_custom.q == 0.2
 
-        node = NodeFP(1, [2], :zero, 0.5, 0.3, 0.1, rng)  # node container wraps message collections
+        node = NodeFP(1, [2], :zero, 0.5, 0.3, 0.1, Xoshiro(BASE_SEED))  # node container wraps message collections
         @test node.i == 1
         @test node.neighs == [2]
         @test node.neighs_idx[2] == 1
@@ -137,33 +143,45 @@ base_model_dis_fc = ModelDisorderedFC(2, 4, 0.2, 0.3, 0.1, 0.05, P0_DIST, Determ
         @test typeof(node.cavs[1]) == CavityFP{Deterministic, Int64, Float64}
         @test typeof(node.marg) == MarginalFP{Deterministic, Int64, Float64}
 
-        node = NodeFP(1, [2], :custom, 0.5, 0.3, 0.1, rng)  # node container wraps message collections
+        node = NodeFP(1, [2], :custom, 0.5, 0.3, 0.1, Xoshiro(BASE_SEED))  # node container wraps message collections
         @test node.i == 1
         @test node.neighs == [2]
         @test node.neighs_idx[2] == 1
         @test typeof(node.cavs[1]) == CavityFP{Deterministic, Int64, Float64}
         @test typeof(node.marg) == MarginalFP{Deterministic, Int64, Float64}
 
-        node_q0 = NodeFP_q0(1, [2], :zero, 0.7, rng)
-        @test node_q0.i == 1
-        @test node_q0.neighs == [2]
-        @test node_q0.neighs_idx[2] == 1
-        @test typeof(node_q0.cavs[1]) == CavityFP_q0{Deterministic, Int64, Float64}
-        @test typeof(node_q0.marg) == MarginalFP_q0{Deterministic, Int64, Float64}
+        node_IBMF = NodeFP_IBMF(1, [2], :zero, 0.7, Xoshiro(BASE_SEED))
+        @test node_IBMF.i == 1
+        @test node_IBMF.neighs == [2]
 
-        node_q0 = NodeFP_q0(1, [2], :random, 0.7, rng)
-        @test node_q0.i == 1
-        @test node_q0.neighs == [2]
-        @test node_q0.neighs_idx[2] == 1
-        @test typeof(node_q0.cavs[1]) == CavityFP_q0{Deterministic, Int64, Float64}
-        @test typeof(node_q0.marg) == MarginalFP_q0{Deterministic, Int64, Float64}
+        node_IBMF = NodeFP_IBMF(1, [2], :random, 0.7, rng)
+        @test node_IBMF.i == 1
+        @test node_IBMF.neighs == [2]
 
-        node_q0 = NodeFP_q0(1, [2], :custom, 0.7, rng)
-        @test node_q0.i == 1
-        @test node_q0.neighs == [2]
-        @test node_q0.neighs_idx[2] == 1
-        @test typeof(node_q0.cavs[1]) == CavityFP_q0{Deterministic, Int64, Float64}
-        @test typeof(node_q0.marg) == MarginalFP_q0{Deterministic, Int64, Float64}
+        node_IBMF = NodeFP_IBMF(1, [2], :custom, 0.7, Xoshiro(BASE_SEED))
+        @test node_IBMF.i == 1
+        @test node_IBMF.neighs == [2]
+
+        node_BP = NodeFP_BP(1, [2], :zero, 0.5, 0.3, Xoshiro(BASE_SEED))  # node container wraps message collections
+        @test node_BP.i == 1
+        @test node_BP.neighs == [2]
+        @test node_BP.neighs_idx[2] == 1
+        @test typeof(node_BP.cavs[1]) == CavityFP_BP{Deterministic, Int64, Float64}
+        @test typeof(node_BP.marg) == MarginalFP_BP{Deterministic, Int64, Float64}
+
+        node_BP_rand = NodeFP_BP(1, [2], :random, 0.5, 0.3, rng)  # node container wraps message collections
+        @test node_BP_rand.i == 1
+        @test node_BP_rand.neighs == [2]
+        @test node_BP_rand.neighs_idx[2] == 1
+        @test typeof(node_BP_rand.cavs[1]) == CavityFP_BP{Deterministic, Int64, Float64}
+        @test typeof(node_BP_rand.marg) == MarginalFP_BP{Deterministic, Int64, Float64}
+
+        node_BP_custom = NodeFP_BP(1, [2], :custom, 0.5, 0.3, Xoshiro(BASE_SEED))  # node container wraps message collections
+        @test node_BP_custom.i == 1
+        @test node_BP_custom.neighs == [2]
+        @test node_BP_custom.neighs_idx[2] == 1
+        @test typeof(node_BP_custom.cavs[1]) == CavityFP_BP{Deterministic, Int64, Float64}
+        @test typeof(node_BP_custom.marg) == MarginalFP_BP{Deterministic, Int64, Float64}
     end
 
     @testset "Populations" begin
@@ -185,14 +203,25 @@ base_model_dis_fc = ModelDisorderedFC(2, 4, 0.2, 0.3, 0.1, 0.05, P0_DIST, Determ
         @test pop_custom.mu_pop == fill(0.1, 2)
         @test pop_custom.chi_pop == fill(0.3, 2)
 
-        pop_q0_zero = RandomLotkaVolterraCavity.init_pop_q0(2, :zero, base_model_dis.p0, 0.0, rng)  # q0 variant vector checks
-        @test pop_q0_zero == zeros(2)
+        pop_IBMF_zero = RandomLotkaVolterraCavity.init_pop_IBMF(2, :zero, 0.0, rng)  # q0 variant vector checks
+        @test pop_IBMF_zero == zeros(2)
 
-        pop_q0_rand = RandomLotkaVolterraCavity.init_pop_q0(2, :random, base_model_dis.p0, 0.0, rng)
-        @test pop_q0_rand == rand(rng_ref, base_model_dis.p0, 2)
+        pop_IBMF_rand = RandomLotkaVolterraCavity.init_pop_IBMF(2, :random, 0.0, rng)
+        @test pop_IBMF_rand == rand(rng_ref, 2)
+        pop_IBMF_custom = RandomLotkaVolterraCavity.init_pop_IBMF(2, :custom, 0.3, rng)
+        @test pop_IBMF_custom == fill(0.3, 2)
 
-        pop_q0_custom = RandomLotkaVolterraCavity.init_pop_q0(2, :custom, base_model_dis.p0, 0.3, rng)
-        @test pop_q0_custom == fill(0.3, 2)
+        pop_BP_zero = PopFP_BP(2, :zero, 0.0, 0.0, rng)  # vectorised zero initialisation
+        @test pop_BP_zero.mu_pop == zeros(2)
+        @test pop_BP_zero.q_pop == zeros(2)
+        
+        pop_BP_rand = PopFP_BP(2, :random, 0.0, 0.0, rng)
+        @test pop_BP_rand.mu_pop == rand(rng_ref, 2)
+        @test pop_BP_rand.q_pop == rand(rng_ref, 2)
+        
+        pop_BP_custom = PopFP_BP(2, :custom, 0.1, 0.2, rng)
+        @test pop_BP_custom.q_pop == fill(0.2, 2)
+        @test pop_BP_custom.mu_pop == fill(0.1, 2)
     end
 
     @testset "Sampling" begin
@@ -239,23 +268,42 @@ base_model_dis_fc = ModelDisorderedFC(2, 4, 0.2, 0.3, 0.1, 0.05, P0_DIST, Determ
             @test all(isfinite, cav_pop.mu_pop)
         end
 
-        nodes_q0, conv_q0, diverged_q0 = run_GECaM_FP_q0(base_model, 5, 1e-3, 0.5; init_type=:custom, x0=0.2, rng=Xoshiro(BASE_SEED), regularization=1e-6)
-        @test length(nodes_q0) == 2
-        @test conv_q0 isa Bool
-        @test diverged_q0 isa Bool
+        nodes_IBMF, conv_IBMF, diverged_IBMF = run_IBMF_FP(base_model, 5, 1e-3, 0.5; init_type=:custom, x0=0.2, rng=Xoshiro(BASE_SEED), regularization=1e-6)
+        @test length(nodes_IBMF) == 2
+        @test conv_IBMF isa Bool
+        @test diverged_IBMF isa Bool
         # q=0 variant shares the same divergence semantics
-        if !diverged_q0
-            @test all(n -> n.marg.x >= 0 && isfinite(n.marg.x), nodes_q0)
+        if !diverged_IBMF
+            @test all(n -> n.x >= 0 && isfinite(n.x), nodes_IBMF)
         end
 
-        pop_q0, conv_dis_q0, diverged_dis_q0 = run_GECaM_FP_q0(base_model_dis, 5, 5, 1e-3, 0.5; init_type=:custom, x0=0.2, rng=Xoshiro(BASE_SEED), regularization=1e-6)
-        @test length(pop_q0) == 5
-        @test conv_dis_q0 isa Bool
-        @test diverged_dis_q0 isa Bool
+        pop_IBMF, conv_dis_IBMF, diverged_dis_IBMF = run_IBMF_FP(base_model_dis, 5, 5, 1e-3, 0.5; init_type=:custom, x0=0.2, rng=Xoshiro(BASE_SEED), regularization=1e-6)
+        @test length(pop_IBMF) == 5
+        @test conv_dis_IBMF isa Bool
+        @test diverged_dis_IBMF isa Bool
         # only check numerical content when the iterative loop converges
-        if !diverged_dis_q0
-            @test all(isfinite, pop_q0)
+        if !diverged_dis_IBMF
+            @test all(isfinite, pop_IBMF)
         end
+
+        nodes_BP, conv_BP, diverged_BP = run_BP_FP(base_model, 5, 1e-3, 0.5; init_type=:custom, mu0=0.2, q0=0.1, rng=Xoshiro(BASE_SEED), regularization=1e-6)
+        @test length(nodes_BP) == 2
+        @test conv_BP isa Bool
+        @test diverged_BP isa Bool
+        # only assert numeric conditions when the solver signals success
+        if !diverged_BP
+            @test all(n -> n.marg.mu >= 0 && isfinite(n.marg.mu), nodes_BP)
+        end
+
+        cav_pop_BP, marg_pop_BP, conv_dis_BP, diverged_dis_BP = run_BP_FP(base_model_dis, 5, 5, 1e-3, 0.5; init_type=:custom, mu0=0.2, q0=0.1, rng=Xoshiro(BASE_SEED), regularization=1e-6)
+        @test length(cav_pop_BP.mu_pop) == 5
+        @test length(marg_pop_BP.mu_pop) == 5
+        @test conv_dis_BP isa Bool
+        @test diverged_dis_BP isa Bool
+        # population dynamics can exit early; guard finite checks accordingly
+        if !diverged_dis_BP
+            @test all(isfinite, cav_pop_BP.mu_pop)
+        end        
     end
 
     @testset "Analytic FC" begin

@@ -33,20 +33,29 @@ function init_nodes(model::Model{Deterministic, I, RT, MT, D}, init_type::Symbol
     return nodes
 end
 
-function init_nodes_q0(model::Model{Deterministic, I, RT, MT, D}, init_type::Symbol, x0::RT, rng::AbstractRNG) where {I<:Integer, RT<:Real, MT<:AbstractMatrix{RT}, D<:Distribution}
-    nodes = Vector{NodeFP_q0{Deterministic, I, RT}}(undef, model.N)
+function init_nodes_IBMF(model::Model{Deterministic, I, RT, MT, D}, init_type::Symbol, x0::RT, rng::AbstractRNG) where {I<:Integer, RT<:Real, MT<:AbstractMatrix{RT}, D<:Distribution}
+    nodes = Vector{NodeFP_IBMF{Deterministic, I, RT}}(undef, model.N)
     for i in 1:model.N
         neighs = findall(model.J[i, :] .!= 0) # Find neighbors of node i
-        nodes[i] = NodeFP_q0(i, neighs, init_type, x0, rng) # Initialize the node with its neighbors
+        nodes[i] = NodeFP_IBMF(i, neighs, init_type, x0, rng) # Initialize the node with its neighbors
     end
     return nodes
 end
 
-function init_pop_q0(P::I, init_type::Symbol, p0::D, x0::RT, rng::AbstractRNG) where {I<:Integer, D<:Distribution, RT<:Real}
+function init_nodes_BP(model::Model{Deterministic, I, RT, MT, D}, init_type::Symbol, mu0::RT, q0::RT, rng::AbstractRNG) where {I<:Integer, RT<:Real, MT<:AbstractMatrix{RT}, D<:Distribution}
+    nodes = Vector{NodeFP_BP{Deterministic, I, RT}}(undef, model.N)
+    for i in 1:model.N
+        neighs = findall(model.J[i, :] .!= 0) # Find neighbors of node i
+        nodes[i] = NodeFP_BP(i, neighs, init_type, mu0, q0, rng) # Initialize the node with its neighbors
+    end
+    return nodes
+end
+
+function init_pop_IBMF(P::I, init_type::Symbol, x0::RT, rng::AbstractRNG) where {I<:Integer, RT<:Real}
     if init_type == :zero
         return zeros(RT, P)
     elseif init_type == :random
-        return rand(rng, p0, P)
+        return rand(rng, P)
     elseif init_type == :custom
         return fill(x0, P)
     else
