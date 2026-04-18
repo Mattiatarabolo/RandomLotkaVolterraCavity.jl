@@ -1,5 +1,5 @@
 """
-    sample_couplings(m::RT, sigma2::RT, corr::RT, K::RT; rng::AbstractRNG=Xoshiro(1234)) where {RT<:Real}
+    sample_couplings(m::RT, sigma2::RT, corr::RT, K::RT; rng::AbstractRNG=Xoshiro(1234), bound::RT=Inf) where {RT<:Real}
 
 Sample couplings J and Jp from a bivariate Gaussian distribution with means `m/K`, variances `sigma2/K`, and correlation `corr`.
 
@@ -8,6 +8,10 @@ Sample couplings J and Jp from a bivariate Gaussian distribution with means `m/K
 - `sigma2::RT`: Variance of the couplings.
 - `corr::RT`: Correlation between the couplings.
 - `K::RT`: Average degree of the network (used for proper scaling of the couplings).
+
+# Optional arguments
+- `rng::AbstractRNG`: random number generator (default Xoshiro(1234)).
+- `bound::RT`: bound used to truncate the couplings around the mean.
 
 # Returns
 - `J::RT`: Sampled coupling J.
@@ -22,18 +26,27 @@ corr = 0.5
 J, J_prime = sample_couplings(m, sigma2, corr, 5.5)
 ``` 
 """
-function sample_couplings(m::RT, sigma2::RT, corr::RT, K::RT; rng::AbstractRNG=Xoshiro(1234)) where {RT<:Real}
-    u = randn(rng, RT)
-    v = randn(rng, RT)
+function sample_couplings(m::RT, sigma2::RT, corr::RT, K::RT; rng::AbstractRNG=Xoshiro(1234), bound::RT=Inf) where {RT<:Real}
     scale = sqrt(sigma2 / K)
     mean = m / K
-    J = mean + scale * u
-    J_prime = mean + scale * (corr * u + sqrt(one(RT) - corr ^ 2) * v)
-    return J, J_prime
+    scale_v = sqrt(one(RT) - corr^2)
+    
+    while true
+        u = randn(rng, RT)
+        v = randn(rng, RT)
+        
+        J = mean + scale * u
+        J_prime = mean + scale * (corr * u + scale_v * v)
+        
+        # Truncate 
+        if abs(J - mean) <= bound && abs(J_prime - mean) <= bound
+            return J, J_prime
+        end
+    end
 end
 
 """
-    sample_couplings(m::RT, sigma2::RT, corr::RT, K::IT; rng::AbstractRNG=Xoshiro(1234)) where {RT<:Real, IT<:Integer}
+    sample_couplings(m::RT, sigma2::RT, corr::RT, K::IT; rng::AbstractRNG=Xoshiro(1234), bound::RT=Inf) where {RT<:Real, IT<:Integer}
 
 Sample couplings J and Jp from a bivariate Gaussian distribution with means `m/K`, variances `sigma2/K`, and correlation `corr`.
 
@@ -42,6 +55,10 @@ Sample couplings J and Jp from a bivariate Gaussian distribution with means `m/K
 - `sigma2::RT`: Variance of the couplings.
 - `corr::RT`: Correlation between the couplings.
 - `K::IT`: Average degree of the network (used for proper scaling of the couplings).
+
+# Optional arguments
+- `rng::AbstractRNG`: random number generator (default Xoshiro(1234)).
+- `bound::RT`: bound used to truncate the couplings around the mean.
 
 # Returns
 - `J::RT`: Sampled coupling J.
@@ -57,13 +74,22 @@ J, J_prime = sample_couplings(m, sigma2, corr, 10)
 ``` 
 """
 function sample_couplings(m::RT, sigma2::RT, corr::RT, K::IT; rng::AbstractRNG=Xoshiro(1234)) where {RT<:Real, IT<:Integer}
-    u = randn(rng, RT)
-    v = randn(rng, RT)
     scale = sqrt(sigma2 / K)
     mean = m / K
-    J = mean + scale * u
-    J_prime = mean + scale * (corr * u + sqrt(one(RT) - corr ^ 2) * v)
-    return J, J_prime
+    scale_v = sqrt(one(RT) - corr^2)
+    
+    while true
+        u = randn(rng, RT)
+        v = randn(rng, RT)
+        
+        J = mean + scale * u
+        J_prime = mean + scale * (corr * u + scale_v * v)
+        
+        # Truncate 
+        if abs(J - mean) <= bound && abs(J_prime - mean) <= bound
+            return J, J_prime
+        end
+    end
 end
 
 
