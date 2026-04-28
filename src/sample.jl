@@ -73,7 +73,7 @@ corr = 0.5
 J, J_prime = sample_couplings(m, sigma2, corr, 10)
 ``` 
 """
-function sample_couplings(m::RT, sigma2::RT, corr::RT, K::IT; rng::AbstractRNG=Xoshiro(1234)) where {RT<:Real, IT<:Integer}
+function sample_couplings(m::RT, sigma2::RT, corr::RT, K::IT; rng::AbstractRNG=Xoshiro(1234), bound::RT=Inf) where {RT<:Real, IT<:Integer}
     scale = sqrt(sigma2 / K)
     mean = m / K
     scale_v = sqrt(one(RT) - corr^2)
@@ -176,7 +176,7 @@ function run_MC(model::Model{NK, I, RT, MT, D}, dt::RT; rng=Xoshiro(1234), tsave
 end
 
 """
-    run_MC(model_dis::ModelDisordered{NK, I, RT, D1, D2, D3, FT}, dt::RT; rng=Xoshiro(1234), tsave=nothing, divergence_threshold=1e6, stopateq=false, eq_threshold=1e-10, min_t_eq=1e2, verbose=false, integrator="adaptive", x0=nothing, tinit=0.0) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D1<:Distribution, D2<:Distribution, D3<:Distribution, FT<:Function}
+    run_MC(model_dis::ModelDisordered{NK, I, RT, D1, D2, D3, FT}, dt::RT; rng=Xoshiro(1234), tsave=nothing, divergence_threshold=1e6, stopateq=false, eq_threshold=1e-10, min_t_eq=1e2, verbose=false, integrator="adaptive", x0=nothing, tinit=0.0, bound=Inf) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D1<:Distribution, D2<:Distribution, D3<:Distribution, FT<:Function}
 
 Run a Monte Carlo simulation of the disordered model for a given time step `dt` by sampling an instance of disorder. It uses the `OrdinaryDiffEq.jl` package to integrate the ODEs. The function samples trajectories of the model and saves them at specified time indices.
 
@@ -195,6 +195,7 @@ Run a Monte Carlo simulation of the disordered model for a given time step `dt` 
 - `integrator::String`: Choice of integrator, either "adaptive" (automatically switching integrator with adaptive time-step) or "fixed" (Euler integrator with fixed time-step) (default "adaptive").
 - `x0::Union{Nothing, Vector{RT}}`: Initial condition for the ODE (default nothing, which samples a random initial condition).
 - `tinit::RT`: Initial time for the ODE integration (default 0.0).
+- `bound::RT`: Bound used to truncate the couplings around the mean when sampling (default Inf, which means no truncation).
 
 # Output
 - `traj::Matrix{RT}`: Matrix of sampled trajectories, where each column corresponds to a time point.
@@ -202,7 +203,7 @@ Run a Monte Carlo simulation of the disordered model for a given time step `dt` 
 - `convergence::Bool`: Boolean indicating whether the integration was successful (true) or diverged/failed (false).
 - `t_eq::RT`: Equilibriation time. If stopateq is false, returns the final time of integration.
 """
-function run_MC(model_dis::ModelDisordered{NK, I, RT, D1, D2, D3, FT}, dt::RT; rng=Xoshiro(1234), tsave=nothing, divergence_threshold=1e6, stopateq=false, eq_threshold=1e-10, min_t_eq=1e2, verbose=false, integrator="adaptive", x0=nothing, tinit=0.0) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D1<:Distribution, D2<:Distribution, D3<:Distribution, FT<:Function}
+function run_MC(model_dis::ModelDisordered{NK, I, RT, D1, D2, D3, FT}, dt::RT; rng=Xoshiro(1234), tsave=nothing, divergence_threshold=1e6, stopateq=false, eq_threshold=1e-10, min_t_eq=1e2, verbose=false, integrator="adaptive", x0=nothing, tinit=0.0, bound=Inf) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D1<:Distribution, D2<:Distribution, D3<:Distribution, FT<:Function}
     # Get the model parameters
     N, K, M, lam, p0, noise = model_dis.N, model_dis.K, model_dis.M, model_dis.lam, model_dis.p0, model_dis.noise
     m, sigma2, corr = model_dis.m, model_dis.sigma2, model_dis.corr
@@ -212,7 +213,7 @@ function run_MC(model_dis::ModelDisordered{NK, I, RT, D1, D2, D3, FT}, dt::RT; r
     @inbounds @fastmath for i in 1:N
         @inbounds @fastmath @simd for j in 1:i-1
             if Jmat[i, j] != 0.0
-                Jmat[i, j], Jmat[j, i] = sample_couplings(m, sigma2, corr, K; rng=rng)
+                Jmat[i, j], Jmat[j, i] = sample_couplings(m, sigma2, corr, K; rng=rng, bound=bound)
             end
         end
     end
@@ -225,9 +226,9 @@ end
 
 
 """
-    run_MC(model_dis::ModelDisorderedFC{NK, I, RT, D}, dt::RT; rng=Xoshiro(1234), tsave=nothing, divergence_threshold=1e6, stopateq=false, eq_threshold=1e-10, min_t_eq=1e2, verbose=false, integrator="adaptive", x0=nothing, tinit=0.0) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D<:Distribution}
+    run_MC(model_dis::ModelDisorderedFC{NK, I, RT, D}, dt::RT; rng=Xoshiro(1234), tsave=nothing, divergence_threshold=1e6, stopateq=false, eq_threshold=1e-10, min_t_eq=1e2, verbose=false, integrator="adaptive", x0=nothing, tinit=0.0, bound=Inf) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D<:Distribution}
 
-Run a Monte Carlo simulation of the  fully-connected disordered model for a given time step `dt`, by sampling an instance of disorder. It uses the `OrdinaryDiffEq.jl` package to integrate the ODEs. The function samples trajectories of the model and saves them at specified time indices.
+Run a Monte Carlo simulation of the fully-connected disordered model for a given time step `dt`, by sampling an instance of disorder. It uses the `OrdinaryDiffEq.jl` package to integrate the ODEs. The function samples trajectories of the model and saves them at specified time indices.
 
 # Arguments
 - `model_dis::ModelDisorderedFC{NK, I, RT, D}`: The disordered model to simulate, where `NK` is the noise kind.
@@ -244,6 +245,7 @@ Run a Monte Carlo simulation of the  fully-connected disordered model for a give
 - `integrator::String`: Choice of integrator, either "adaptive" (automatically switching integrator with adaptive time-step) or "fixed" (Euler integrator with fixed time-step) (default "adaptive").
 - `x0::Union{Nothing, Vector{RT}}`: Initial condition for the ODE (default nothing, which samples a random initial condition).
 - `tinit::RT`: Initial time for the ODE integration (default 0.0).
+- `bound::RT`: Bound used to truncate the couplings around the mean when sampling (default Inf, which means no truncation).
 
 # Output
 - `traj::Matrix{RT}`: Matrix of sampled trajectories, where each column corresponds to a time point.
@@ -251,7 +253,7 @@ Run a Monte Carlo simulation of the  fully-connected disordered model for a give
 - `convergence::Bool`: Boolean indicating whether the integration was successful (true) or diverged/failed (false).
 - `t_eq::RT`: Equilibriation time. If stopateq is false, returns the final time of integration.
 """
-function run_MC(model_dis::ModelDisorderedFC{NK, I, RT, D}, dt::RT; rng=Xoshiro(1234), tsave=nothing, divergence_threshold=1e6, stopateq=false, eq_threshold=1e-10, min_t_eq=1e2, verbose=false, integrator="adaptive", x0=nothing, tinit=0.0) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D<:Distribution}
+function run_MC(model_dis::ModelDisorderedFC{NK, I, RT, D}, dt::RT; rng=Xoshiro(1234), tsave=nothing, divergence_threshold=1e6, stopateq=false, eq_threshold=1e-10, min_t_eq=1e2, verbose=false, integrator="adaptive", x0=nothing, tinit=0.0, bound=Inf) where {NK<:AbstractNoiseKind, I<:Integer, RT<:Real, D<:Distribution}
     # Get the model parameters
     N, M, lam, p0, noise = model_dis.N, model_dis.M, model_dis.lam, model_dis.p0, model_dis.noise
     m, sigma2, corr = model_dis.m, model_dis.sigma2, model_dis.corr
@@ -260,7 +262,7 @@ function run_MC(model_dis::ModelDisorderedFC{NK, I, RT, D}, dt::RT; rng=Xoshiro(
     Jmat = zeros(RT, N, N)
     @inbounds @fastmath for i in 1:N
         @inbounds @fastmath @simd for j in 1:i-1
-            Jmat[i, j], Jmat[j, i] = sample_couplings(m, sigma2, corr, N; rng=rng)
+            Jmat[i, j], Jmat[j, i] = sample_couplings(m, sigma2, corr, N; rng=rng, bound=bound)
         end
     end
     
